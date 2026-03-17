@@ -1,0 +1,4 @@
+@extends('layouts.app', ['title' => 'Update Technician'])
+@section('content')
+<div class="auth-card wide"><h1>Update Technician Account</h1><form method="POST" action="{{ route('admin.technicians.update', $technician) }}">@csrf @method('PUT')<label>Technician Name</label><input type="text" name="name" value="{{ old('name', $technician->name) }}" required><label>Email Address</label><input type="email" name="email" value="{{ old('email', $technician->email) }}" required><label>Phone Number</label><input type="text" name="phone_number" value="{{ old('phone_number', $technician->phone_number) }}" required><label>New Password</label><input type="password" name="password"><label>Confirm New Password</label><input type="password" name="password_confirmation"><div class="action-row"><button class="btn primary" type="submit">Save Changes</button><a class="btn ghost" href="{{ route('admin.technicians.show', $technician) }}">Discard Changes</a></div></form></div>
+@endsection

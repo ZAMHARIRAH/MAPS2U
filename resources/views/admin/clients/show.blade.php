@@ -1,0 +1,4 @@
+@extends('layouts.app', ['title' => 'Client Account'])
+@section('content')
+<div class="profile-card"><div class="profile-top"><img class="profile-avatar" src="{{ $client->profilePhotoUrl() }}" alt="Profile picture"><div><h1>{{ $client->name }}</h1><p>{{ $client->roleLabel() }}</p></div></div><div class="details-grid"><div><span>Name</span><strong>{{ $client->name }}</strong></div><div><span>Email</span><strong>{{ $client->email }}</strong></div><div><span>Phone Number</span><strong>{{ $client->phone_number }}</strong></div><div><span>Role</span><strong>{{ $client->roleLabel() }}</strong></div><div class="full"><span>Address</span><strong>{{ $client->address }}</strong></div></div><div class="action-row"><a class="btn ghost" href="{{ route('admin.accounts.index') }}">Back</a></div></div>
+@endsection

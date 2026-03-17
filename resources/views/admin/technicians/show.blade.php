@@ -1,0 +1,4 @@
+@extends('layouts.app', ['title' => 'View Technician'])
+@section('content')
+<div class="profile-card"><div class="profile-top"><img class="profile-avatar" src="{{ $technician->profilePhotoUrl() }}" alt="Profile picture"><div><h1>{{ $technician->name }}</h1><p>Technician</p></div></div><div class="details-grid"><div><span>Name</span><strong>{{ $technician->name }}</strong></div><div><span>Email</span><strong>{{ $technician->email }}</strong></div><div><span>Phone Number</span><strong>{{ $technician->phone_number }}</strong></div><div><span>Role</span><strong>Technician</strong></div></div><div class="action-row"><a class="btn primary" href="{{ route('admin.technicians.edit', $technician) }}">Update Account</a><form method="POST" action="{{ route('admin.technicians.destroy', $technician) }}" data-delete-confirm="Delete this technician account?">@csrf @method('DELETE')<button class="btn danger" type="submit">Delete Account</button></form></div></div>
+@endsection

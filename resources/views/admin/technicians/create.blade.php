@@ -1,0 +1,4 @@
+@extends('layouts.app', ['title' => 'Add Technician'])
+@section('content')
+<div class="auth-card wide"><h1>Add Technician Account</h1><form method="POST" action="{{ route('admin.technicians.store') }}">@csrf <label>Technician Name</label><input type="text" name="name" value="{{ old('name') }}" required><label>Email Address</label><input type="email" name="email" value="{{ old('email') }}" required><label>Phone Number</label><input type="text" name="phone_number" value="{{ old('phone_number') }}" required><label>Password</label><input type="password" name="password" required><label>Confirm Password</label><input type="password" name="password_confirmation" required><div class="action-row"><button class="btn primary" type="submit">Create Account</button><a class="btn ghost" href="{{ route('admin.technicians.index') }}">Cancel</a></div></form></div>
+@endsection
