@@ -5,7 +5,6 @@
     $review = $job->technician_review ?? [];
     $inspect = $job->inspect_data ?? [];
     $report = $job->customer_service_report ?? [];
-    $activeTimer = $job->activeInspectionSession();
     $isLocked = (bool) $job->technician_completed_at;
     $quoteLocked = $job->approved_quotation_index !== null;
 @endphp
@@ -107,6 +106,15 @@
                     <div class="summary-card compact-summary"><strong>Visit Site</strong><span>{{ ucfirst(data_get($review, 'visit_site', 'no')) }}</span></div>
                     @if(data_get($review, 'visit_site_remark'))
                         <div class="summary-card compact-summary"><strong>Visit Site Remark</strong><span>{{ data_get($review, 'visit_site_remark') }}</span></div>
+                    @endif
+                    @if(!empty(data_get($review, 'visit_site_files', [])))
+                        <div class="summary-card compact-summary span-2"><strong>Visit Site Files</strong>
+                            <div class="preview-grid customer-service-attachment-grid" style="margin-top:12px;">
+                                @foreach(data_get($review, 'visit_site_files', []) as $file)
+                                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Visit site file'])
+                                @endforeach
+                            </div>
+                        </div>
                     @endif
                 </div>
                 @unless($isLocked)
@@ -225,11 +233,13 @@
                         <label>Company Name</label>
                         <input type="text" name="quotation_{{ $i }}_company_name" value="{{ $existingQuote['company_name'] ?? '' }}">
                         <label>Amount (RM)</label>
-                        <input type="number" step="0.01" min="0" name="quotation_{{ $i }}_amount" value="{{ $existingQuote['amount'] ?? '' }}">
-                        <label>Summary Report (required if amount > RM5000)</label>
-                        <textarea name="quotation_{{ $i }}_summary_report">{{ $existingQuote['summary_report'] ?? '' }}</textarea>
-                        <label>Summary Supporting Files</label>
-                        <input type="file" name="quotation_{{ $i }}_summary_files[]" multiple>
+                        <input type="number" step="0.01" min="0" name="quotation_{{ $i }}_amount" value="{{ $existingQuote['amount'] ?? '' }}" class="quotation-amount-input" data-slot="{{ $i }}">
+                        <div class="quotation-summary-extra {{ (float) ($existingQuote['amount'] ?? 0) > 5000 ? 'show-block' : '' }}" id="quotation-summary-extra-{{ $i }}">
+                            <label>Summary Report (required if amount > RM5000)</label>
+                            <textarea name="quotation_{{ $i }}_summary_report">{{ $existingQuote['summary_report'] ?? '' }}</textarea>
+                            <label>Summary Supporting Files</label>
+                            <input type="file" name="quotation_{{ $i }}_summary_files[]" multiple>
+                        </div>
                     </div>
                 @endfor
             </div>
@@ -239,7 +249,7 @@
     </div>
 </section>
 
-<div class="content-grid tri" style="margin-top:20px; align-items:start;">
+<div class="content-grid tri tech-bottom-grid" style="margin-top:20px; align-items:start;">
     <section class="panel shaded-panel">
         <div class="panel-head"><h3>Approved Quotation</h3></div>
         @if($approved)
@@ -249,13 +259,46 @@
                 <div class="summary-card compact-summary"><strong>Amount</strong><span>RM {{ number_format((float) ($approved['amount'] ?? 0), 2) }}</span></div>
                 <div class="summary-card compact-summary"><strong>Company</strong><span>{{ $approved['company_name'] ?? '-' }}</span></div>
             </div>
+            @if(!empty($approved['summary_files']))
+                <div class="board-section" style="margin-top:12px;">
+                    <div class="panel-head compact"><h4>Supporting Files</h4></div>
+                    <div class="preview-grid two-up" style="margin-top:12px;">
+                        @foreach($approved['summary_files'] as $file)
+                            @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Supporting file'])
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        @else
+            <div class="alert-card info">Approved quotation will appear here after admin selects one quotation.</div>
+        @endif
+    </section>
 
+    <section class="panel shaded-panel">
+        <div class="panel-head"><h3>Payment / Receipt / Schedule</h3></div>
+        @if($approved)
             @if($job->scheduled_date || $job->payment_type)
-                <div class="summary-stack" style="margin-top:14px;">
+                <div class="summary-stack">
                     <div class="summary-card compact-summary"><strong>Payment Type</strong><span>{{ $job->payment_type ? ucfirst(str_replace('_', ' ', $job->payment_type)) : '-' }}</span></div>
                     <div class="summary-card compact-summary"><strong>Schedule</strong><span>{{ optional($job->scheduled_date)->format('d M Y') ?: '-' }} {{ $job->scheduled_time ?: '' }}</span></div>
                 </div>
-                @if(!empty($job->payment_receipt_files))
+                @if(!empty($job->payment_receipt_history))
+                    <div class="summary-stack" style="margin-top:12px;">
+                        @foreach($job->payment_receipt_history as $history)
+                            <div class="summary-card compact-summary span-2">
+                                <strong>{{ ucfirst(str_replace('_', ' ', $history['payment_type'] ?? '-')) }}</strong>
+                                <span>{{ $history['uploaded_label'] ?? ($history['uploaded_at'] ?? '-') }}</span>
+                                @if(!empty($history['files']))
+                                    <div class="preview-grid single-column" style="margin-top:12px;">
+                                        @foreach($history['files'] as $file)
+                                            @include('components.file-preview', ['file' => $file, 'label' => ($history['uploaded_label'] ?? 'Receipt Upload') . ' - ' . ($file['original_name'] ?? 'Receipt')])
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @elseif(!empty($job->payment_receipt_files))
                     <div class="preview-grid single-column" style="margin-top:12px;">
                         @foreach($job->payment_receipt_files as $file)
                             @include('components.file-preview', ['file' => $file, 'label' => $file['original_name']])
@@ -275,6 +318,7 @@
                 <input type="file" name="payment_receipt_files[]" multiple>
                 <label>Payment Type</label>
                 <div class="radio-group">
+                    <label><input type="radio" name="payment_type" value="balance" {{ $job->payment_type === 'balance' ? 'checked' : '' }} required> Balance</label>
                     <label><input type="radio" name="payment_type" value="downpayment" {{ $job->payment_type === 'downpayment' ? 'checked' : '' }} required> Downpayment</label>
                     <label><input type="radio" name="payment_type" value="full_payment" {{ $job->payment_type === 'full_payment' ? 'checked' : '' }} required> Full Payment</label>
                 </div>
@@ -286,169 +330,161 @@
             </form>
             @endunless
         @else
-            <div class="alert-card info">Approved quotation will appear here after admin selects one quotation.</div>
+            <div class="alert-card info">Payment and schedule entry will be available after admin approves the quotation.</div>
         @endif
-    </section>
-
-    <section class="panel shaded-panel">
-        <div class="panel-head"><h3>Inspect Form</h3></div>
-        <div class="inspection-timer-card">
-            <div class="panel-head compact"><h4>Inspection Timer</h4></div>
-            @if($activeTimer)
-                <div class="alert-card info">Inspection timer is running since {{ $activeTimer['started_label'] ?? $activeTimer['started_at'] }}.</div>
-                @unless($isLocked)
-                <form method="POST" action="{{ route('technician.job-requests.inspection-timer', $job) }}">
-                    @csrf
-                    <input type="hidden" name="timer_action" value="stop">
-                    <label>After stop</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="timer_decision" value="proceed" required> Proceed</label>
-                        <label><input type="radio" name="timer_decision" value="amend" required> Amend</label>
-                    </div>
-                    <label>Remark (for amend)</label>
-                    <input type="text" name="timer_remark" placeholder="Optional remark">
-                    <div class="action-row" style="margin-top:14px;"><button class="btn danger" type="submit">Stop</button></div>
-                </form>
-                @endunless
-            @else
-                @unless($isLocked)
-                <form method="POST" action="{{ route('technician.job-requests.inspection-timer', $job) }}">
-                    @csrf
-                    <input type="hidden" name="timer_action" value="start">
-                    <button class="btn accent" type="submit">Start</button>
-                </form>
-                @endunless
-            @endif
-            @if(!empty($job->inspection_sessions))
-                <div class="timeline-shell" style="margin-top:16px;">
-                    @foreach($job->inspection_sessions as $session)
-                        <div class="timeline-item muted-timeline">
-                            <strong>{{ $session['started_label'] ?? ($session['started_at'] ?? '-') }}</strong>
-                            <p>End: {{ $session['ended_label'] ?? 'Running' }}</p>
-                            <p>Duration: {{ $job->formattedDuration($session['duration_seconds'] ?? null) }}</p>
-                            <p class="helper-text">{{ ucfirst($session['remark'] ?? 'initial') }}</p>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-
-        @if(!empty($inspect))
-            <div class="summary-stack" style="margin-top:16px;">
-                <div class="summary-card compact-summary"><strong>Remark</strong><span>{{ data_get($inspect, 'inspection_remark') ?: '-' }}</span></div>
-                <div class="summary-card compact-summary"><strong>Safety</strong><span>{{ data_get($inspect, 'safety_checked') ? 'Checked' : '-' }}</span></div>
-                <div class="summary-card compact-summary"><strong>Quality Standard</strong><span>{{ data_get($inspect, 'quality_checked') ? 'Checked' : '-' }}</span></div>
-                <div class="summary-card compact-summary"><strong>Customer Satisfaction</strong><span>{{ data_get($inspect, 'customer_satisfaction_checked') ? 'Checked' : '-' }}</span></div>
-                <div class="summary-card compact-summary"><strong>Add Related Job</strong><span>{{ data_get($inspect, 'add_related_job') ? 'Yes' : 'No' }}</span></div>
-            </div>
-            <div class="preview-grid two-up" style="margin-top:14px;">
-                @foreach(data_get($inspect, 'before_files', []) as $file)
-                    @include('components.file-preview', ['file' => $file, 'label' => 'Before - ' . $file['original_name']])
-                @endforeach
-                @foreach(data_get($inspect, 'after_files', []) as $file)
-                    @include('components.file-preview', ['file' => $file, 'label' => 'After - ' . $file['original_name']])
-                @endforeach
-            </div>
-            @unless($isLocked)
-                <div class="action-row" style="margin-top:14px;"><button class="btn ghost" type="button" onclick="toggleBlock('inspect-form')">Edit</button></div>
-            @endunless
-        @endif
-        @unless($isLocked)
-        <form method="POST" action="{{ route('technician.job-requests.inspect', $job) }}" enctype="multipart/form-data" id="inspect-form" class="{{ !empty($inspect) ? 'hidden-form-block' : '' }}">
-            @csrf
-            @method('PUT')
-            <label>Before Files</label><input type="file" name="before_files[]" multiple>
-            <label>After Files</label><input type="file" name="after_files[]" multiple>
-            <label>Comment / Remark</label><textarea name="inspection_remark">{{ data_get($inspect, 'inspection_remark') }}</textarea>
-            <label class="inline-check"><input type="checkbox" name="safety_checked" value="1" {{ data_get($inspect, 'safety_checked') ? 'checked' : '' }} required> Safety</label>
-            <textarea name="safety_remark" placeholder="Safety remark (optional)">{{ data_get($inspect, 'safety_remark') }}</textarea>
-            <label class="inline-check"><input type="checkbox" name="quality_checked" value="1" {{ data_get($inspect, 'quality_checked') ? 'checked' : '' }} required> Quality Standard</label>
-            <textarea name="quality_remark" placeholder="Quality remark (optional)">{{ data_get($inspect, 'quality_remark') }}</textarea>
-            <label class="inline-check"><input type="checkbox" name="customer_satisfaction_checked" value="1" {{ data_get($inspect, 'customer_satisfaction_checked') ? 'checked' : '' }} required> Customer Satisfaction</label>
-            <textarea name="customer_satisfaction_remark" placeholder="Customer satisfaction remark (optional)">{{ data_get($inspect, 'customer_satisfaction_remark') }}</textarea>
-            <label class="inline-check"><input type="checkbox" name="add_related_job" value="1" {{ data_get($inspect, 'add_related_job') ? 'checked' : '' }}> Add Job Related</label>
-            <div class="action-row" style="margin-top:14px;"><button class="btn primary" type="submit">Submit</button></div>
-        </form>
-        @endunless
     </section>
 
     <section class="panel shaded-panel landscape-panel">
-        <div class="panel-head"><h3>Invoice / Customer Service</h3></div>
-        @if(!empty($job->invoice_files))
-            <div class="preview-grid single-column">
-                @foreach($job->invoice_files as $file)
-                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name']])
-                @endforeach
-            </div>
-        @endif
-        @unless($isLocked)
-        <form method="POST" action="{{ route('technician.job-requests.invoice', $job) }}" enctype="multipart/form-data" style="margin-top:14px;">
-            @csrf
-            <label>Upload Invoice</label>
-            <input type="file" name="invoice_files[]" multiple required>
-            <div class="action-row" style="margin-top:14px;"><button class="btn primary" type="submit">Submit</button></div>
-        </form>
-        @endunless
+        <div class="panel-head"><h3>Inspection Form</h3></div>
 
-        @if(!empty($job->invoice_files))
-            <hr style="margin:18px 0;">
-            <div class="panel-head compact"><h4>Customer Service Report</h4></div>
-            @if(empty($job->inspection_sessions))
-                <div class="alert-card warning" style="margin-bottom:12px;">Start and stop the inspection timer first so the report can capture inspection date and duration history.</div>
+        <div class="board-section inspection-clean-panel">
+            <div class="panel-head compact"><h4>Inspection Summary</h4></div>
+            @if(!empty($inspect))
+                <div class="field-pair-grid">
+                    <div class="summary-card compact-summary"><strong>Inspection Remark</strong><span>{{ data_get($inspect, 'inspection_remark') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Add Related Job</strong><span>{{ data_get($inspect, 'add_related_job') ? 'Yes' : 'No' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Safety</strong><span>{{ data_get($inspect, 'safety_checked') ? 'Checked' : '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Safety Remark</strong><span>{{ data_get($inspect, 'safety_remark') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Quality Standard</strong><span>{{ data_get($inspect, 'quality_checked') ? 'Checked' : '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Quality Remark</strong><span>{{ data_get($inspect, 'quality_remark') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Customer Satisfaction</strong><span>{{ data_get($inspect, 'customer_satisfaction_checked') ? 'Checked' : '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Customer Satisfaction Remark</strong><span>{{ data_get($inspect, 'customer_satisfaction_remark') ?: '-' }}</span></div>
+                </div>
+                @if(!empty(data_get($inspect, 'before_files', [])) || !empty(data_get($inspect, 'after_files', [])))
+                    <div class="content-grid two-two" style="margin-top:16px;">
+                        <div class="summary-card compact-summary">
+                            <strong>Before Files</strong>
+                            <div class="preview-grid single-column" style="margin-top:12px;">
+                                @forelse(data_get($inspect, 'before_files', []) as $file)
+                                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Before file'])
+                                @empty
+                                    <span class="helper-text">-</span>
+                                @endforelse
+                            </div>
+                        </div>
+                        <div class="summary-card compact-summary">
+                            <strong>After Files</strong>
+                            <div class="preview-grid single-column" style="margin-top:12px;">
+                                @forelse(data_get($inspect, 'after_files', []) as $file)
+                                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'After file'])
+                                @empty
+                                    <span class="helper-text">-</span>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @unless($isLocked || !empty($report))
+                    <div class="action-row" style="margin-top:14px;"><button class="btn ghost" type="button" onclick="toggleBlock('inspection-form-edit')">Edit Inspection Form</button></div>
+                @endunless
+            @elseif($isLocked)
+                <div class="alert-card warning">Inspection form was not available on this completed job.</div>
+            @else
+                <div class="alert-card info" style="margin-bottom:12px;">Technician must submit the inspection form here first. Customer service report and client feedback stay locked until this is submitted.</div>
             @endif
 
-            @if(!empty($report))
-                <div class="summary-stack">
-                    <div class="summary-card compact-summary"><strong>Technician</strong><span>{{ data_get($report, 'technician_name') }}</span></div>
-                    <div class="summary-card compact-summary"><strong>Date Inspection</strong><span>{{ data_get($report, 'date_inspection') ?: '-' }}</span></div>
-                    <div class="summary-card compact-summary span-2"><strong>Suggestion</strong><span>{{ data_get($report, 'suggestion_recommendation') }}</span></div>
-                </div>
-                <div class="timeline-shell" style="margin-top:14px;">
-                    @foreach(data_get($report, 'time_history', []) as $session)
-                        <div class="timeline-item muted-timeline">
-                            <strong>Start: {{ $session['started_label'] ?? ($session['started_at'] ?? '-') }}</strong>
-                            <p>End: {{ $session['ended_label'] ?? '-' }}</p>
-                            <p>Duration: {{ $job->formattedDuration($session['duration_seconds'] ?? null) }}</p>
-                            <p class="helper-text">{{ ucfirst($session['remark'] ?? 'initial') }}</p>
+            @unless($isLocked || !empty($report))
+                <form method="POST" action="{{ route('technician.job-requests.inspect', $job) }}" enctype="multipart/form-data" id="inspection-form-edit" class="{{ !empty($inspect) ? 'hidden-form-block' : 'show-block' }}" style="margin-top:16px;">
+                    @csrf
+                    @method('PUT')
+                    <div class="content-grid two-two">
+                        <div>
+                            <label>Before Files</label>
+                            <input type="file" name="before_files[]" multiple>
                         </div>
-                    @endforeach
+                        <div>
+                            <label>After Files</label>
+                            <input type="file" name="after_files[]" multiple>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <label>Inspection Remark</label>
+                        <textarea name="inspection_remark">{{ old('inspection_remark', data_get($inspect, 'inspection_remark')) }}</textarea>
+                    </div>
+                    <div class="content-grid two-two" style="margin-top:14px;">
+                        <div class="summary-card compact-summary">
+                            <label style="display:flex;gap:10px;align-items:flex-start;"><input type="checkbox" name="safety_checked" value="1" required {{ old('safety_checked', data_get($inspect, 'safety_checked')) ? 'checked' : '' }}><span><strong>Safety Checked</strong><small style="display:block;">Confirm work area safety has been checked.</small></span></label>
+                            <textarea name="safety_remark" placeholder="Safety remark" style="margin-top:10px;">{{ old('safety_remark', data_get($inspect, 'safety_remark')) }}</textarea>
+                        </div>
+                        <div class="summary-card compact-summary">
+                            <label style="display:flex;gap:10px;align-items:flex-start;"><input type="checkbox" name="quality_checked" value="1" required {{ old('quality_checked', data_get($inspect, 'quality_checked')) ? 'checked' : '' }}><span><strong>Quality Standard Checked</strong><small style="display:block;">Confirm repair quality meets the required standard.</small></span></label>
+                            <textarea name="quality_remark" placeholder="Quality remark" style="margin-top:10px;">{{ old('quality_remark', data_get($inspect, 'quality_remark')) }}</textarea>
+                        </div>
+                        <div class="summary-card compact-summary">
+                            <label style="display:flex;gap:10px;align-items:flex-start;"><input type="checkbox" name="customer_satisfaction_checked" value="1" required {{ old('customer_satisfaction_checked', data_get($inspect, 'customer_satisfaction_checked')) ? 'checked' : '' }}><span><strong>Customer Satisfaction Checked</strong><small style="display:block;">Confirm technician has reviewed satisfaction readiness.</small></span></label>
+                            <textarea name="customer_satisfaction_remark" placeholder="Customer satisfaction remark" style="margin-top:10px;">{{ old('customer_satisfaction_remark', data_get($inspect, 'customer_satisfaction_remark')) }}</textarea>
+                        </div>
+                        <div class="summary-card compact-summary">
+                            <label style="display:flex;gap:10px;align-items:center;"><input type="checkbox" name="add_related_job" value="1" {{ old('add_related_job', data_get($inspect, 'add_related_job')) ? 'checked' : '' }}><span><strong>Add Related Job</strong></span></label>
+                            <small style="display:block;margin-top:10px;">Tick this if a related follow-up job needs to be created.</small>
+                        </div>
+                    </div>
+                    <div class="action-row" style="margin-top:14px;"><button class="btn primary" type="submit">{{ !empty($inspect) ? 'Update Inspection Form' : 'Submit Inspection Form' }}</button></div>
+                </form>
+            @endunless
+        </div>
+    </section>
+
+    <section class="panel shaded-panel landscape-panel customer-service-panel-wide" style="margin-top:20px;">
+        <div class="panel-head"><h3>Customer Service Report</h3></div>
+        <div class="board-section">
+            <div class="panel-head compact"><h4>Service Summary</h4></div>
+            @if(!$job->inspect_data)
+                <div class="alert-card warning">Submit inspection form first before filling the customer service report.</div>
+            @elseif(empty($job->inspection_sessions))
+                <div class="alert-card warning">Please create technician daily log records from the assigned job request list first.</div>
+            @elseif(!empty($report))
+                <div class="summary-stack customer-service-landscape-grid customer-service-summary-wide">
+                    <div class="summary-card compact-summary"><strong>Technician</strong><span>{{ data_get($report, 'technician_name') }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Date</strong><span>{{ data_get($report, 'date_inspection') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Duration of Work</strong><span>{{ data_get($report, 'duration_of_work') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Submitted At</strong><span>{{ data_get($report, 'submitted_at') ?: '-' }}</span></div>
+                    <div class="summary-card compact-summary span-2"><strong>Description of Work</strong><span>{!! nl2br(e(data_get($report, 'description_of_work'))) !!}</span></div>
+                    <div class="summary-card compact-summary span-2"><strong>Suggestion</strong><span>{{ data_get($report, 'suggestion_recommendation') ?: '-' }}</span></div>
                 </div>
+                @if(!empty(data_get($report, 'attachments', [])))
+                    <div class="preview-grid two-up" style="margin-top:12px;">
+                        @foreach(data_get($report, 'attachments', []) as $file)
+                            @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'CSR attachment'])
+                        @endforeach
+                    </div>
+                @endif
                 <div class="signature-display-grid" style="margin-top:14px;">
-                    <div class="signature-image-card"><strong>Person in Charge</strong><img src="{{ data_get($report, 'person_in_charge_signature') }}" alt="Person in charge signature"></div>
-                    <div class="signature-image-card"><strong>Verify By</strong><img src="{{ data_get($report, 'verify_by_signature') }}" alt="Verify by signature"></div>
+                    @if(data_get($report, 'person_in_charge_signature'))<div class="signature-image-card"><strong>Person in Charge</strong><img src="{{ data_get($report, 'person_in_charge_signature') }}" alt="Person in charge signature"></div>@endif
+                    @if(data_get($report, 'verify_by_signature'))<div class="signature-image-card"><strong>Verify By</strong><img src="{{ data_get($report, 'verify_by_signature') }}" alt="Verify by signature"></div>@endif
                 </div>
             @else
                 <form method="POST" action="{{ route('technician.job-requests.customer-service', $job) }}" enctype="multipart/form-data" id="customer-service-form">
                     @csrf
-                    <div class="summary-stack">
+                    <div class="summary-stack customer-service-landscape-grid customer-service-summary-wide">
                         <div class="summary-card compact-summary"><strong>Nama Technician</strong><span>{{ $job->assignedTechnician?->name ?? '-' }}</span></div>
                         <div class="summary-card compact-summary"><strong>Job ID</strong><span>{{ $job->request_code }}</span></div>
-                        <div class="summary-card compact-summary"><strong>Date Inspection</strong><span>{{ $job->inspectionDate() ?: '-' }}</span></div>
+                        <div class="summary-card compact-summary"><strong>Date</strong><span>{{ now('Asia/Kuala_Lumpur')->format('d M Y') }}</span></div>
+                        <div class="summary-card compact-summary"><strong>Duration of Work</strong><span>{{ $job->formattedDuration($job->totalInspectionDurationSeconds()) }}</span></div>
                     </div>
+                    <div style="margin-top:14px;">
+                        <label>Description of Work</label>
+                        <textarea name="description_of_work" readonly>{{ $job->compiledDailyLogDescription() }}</textarea>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <label>Suggestion / Recommendation</label>
+                        <textarea name="suggestion_recommendation">{{ data_get($report, 'suggestion_recommendation') }}</textarea>
+                    </div>
+                    <label>Attachment (required)</label>
+                    <input type="file" name="attachments[]" multiple required>
                     @if(!empty($job->inspection_sessions))
-                        <div class="timeline-shell" style="margin-top:14px;">
-                            @foreach($job->inspection_sessions as $session)
-                                <div class="timeline-item muted-timeline">
-                                    <strong>Start: {{ $session['started_label'] ?? ($session['started_at'] ?? '-') }}</strong>
-                                    <p>End: {{ $session['ended_label'] ?? '-' }}</p>
-                                    <p>Duration: {{ $job->formattedDuration($session['duration_seconds'] ?? null) }}</p>
-                                    <p class="helper-text">{{ ucfirst($session['remark'] ?? 'initial') }}</p>
-                                </div>
-                            @endforeach
-                        </div>
+                        <details style="margin-top:12px;">
+                            <summary class="btn tiny ghost" style="display:inline-flex;">View Daily Log Attachments</summary>
+                            <div class="preview-grid two-up" style="margin-top:12px;">
+                                @foreach($job->inspection_sessions as $session)
+                                    @foreach(($session['attachments'] ?? []) as $file)
+                                        @include('components.file-preview', ['file' => $file, 'label' => ($session['date_label'] ?? '-') . ' - ' . ($file['original_name'] ?? 'Attachment')])
+                                    @endforeach
+                                @endforeach
+                            </div>
+                        </details>
                     @endif
-                    <div class="two-col-inline" style="margin-top:14px; align-items:start;">
-                        <div>
-                            <label>Description of Work Done</label>
-                            <textarea name="description_of_work">{{ data_get($report, 'description_of_work') }}</textarea>
-                        </div>
-                        <div>
-                            <label>Suggestion / Recommendation</label>
-                            <textarea name="suggestion_recommendation" required>{{ data_get($report, 'suggestion_recommendation') }}</textarea>
-                        </div>
-                    </div>
-                    <label>Attachment</label>
-                    <input type="file" name="attachments[]" multiple>
                     <div class="signature-pad-shell">
                         <div>
                             <label>Person in Charge</label>
@@ -466,7 +502,7 @@
                     <div class="action-row" style="margin-top:14px;"><button class="btn primary" type="submit">Submit</button></div>
                 </form>
             @endif
-        @endif
+        </div>
     </section>
 </div>
 
@@ -521,5 +557,15 @@ function bindSignaturePad(canvas) {
   canvas.parentElement.querySelector('.signature-clear')?.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); target.value=''; });
 }
 document.querySelectorAll('.signature-pad').forEach(bindSignaturePad);
+document.querySelectorAll('.quotation-amount-input').forEach((input) => {
+  const sync = () => {
+    const slot = input.dataset.slot;
+    const target = document.getElementById(`quotation-summary-extra-${slot}`);
+    if (!target) return;
+    target.classList.toggle('show-block', Number(input.value || 0) > 5000);
+  };
+  input.addEventListener('input', sync);
+  sync();
+});
 </script>
 @endsection

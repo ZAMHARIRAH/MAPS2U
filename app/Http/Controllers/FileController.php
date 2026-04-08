@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FileController extends Controller
 {
-    public function show(string $encodedPath): StreamedResponse
+    public function show(Request $request, string $encodedPath): StreamedResponse
     {
         abort_unless(auth()->check(), 403);
 
@@ -21,6 +22,8 @@ class FileController extends Controller
         $mime = Storage::disk('public')->mimeType($resolvedPath) ?: 'application/octet-stream';
         $filename = basename($resolvedPath);
 
+        $disposition = $request->boolean('download') ? 'attachment' : 'inline';
+
         return response()->stream(function () use ($resolvedPath) {
             $stream = Storage::disk('public')->readStream($resolvedPath);
             if ($stream) {
@@ -29,7 +32,7 @@ class FileController extends Controller
             }
         }, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Content-Disposition' => $disposition . '; filename="' . $filename . '"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=0, must-revalidate',
         ]);

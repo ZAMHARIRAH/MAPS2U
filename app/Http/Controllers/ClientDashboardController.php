@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use App\Models\ClientRequest;
 use App\Models\RequestType;
 use Illuminate\Support\Facades\Auth;
@@ -45,6 +46,7 @@ class ClientDashboardController extends Controller
             'scheduledCount' => $allRequests->filter(fn (ClientRequest $request) => $request->upcomingScheduleDays() !== null)->count(),
             'upcomingSchedules' => $latestRequests->filter(fn (ClientRequest $request) => $request->upcomingScheduleDays() !== null),
             'relatedQueue' => $relatedQueue,
+            'announcements' => Announcement::active()->ordered()->get(),
         ]);
     }
 }

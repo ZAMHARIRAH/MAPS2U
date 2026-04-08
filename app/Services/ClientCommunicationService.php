@@ -105,9 +105,9 @@ class ClientCommunicationService
             ],
             'invoice_uploaded' => [
                 'subject' => 'MAPS2U: Feedback required - ' . $r->request_code,
-                'headline' => 'Invoice uploaded and feedback will be needed',
-                'email_body' => "Invoice has been uploaded for job {$r->request_code}. Please monitor the website for the feedback form and submit your review once it becomes available.",
-                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nInvoice has been uploaded. Please log in to the website and complete the feedback form when available.",
+                'headline' => 'Customer service report submitted and feedback will be needed',
+                'email_body' => "Customer service report has been submitted for job {$r->request_code}. Please monitor the website for the feedback form and submit your review once it becomes available.",
+                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nCustomer service report has been submitted. Please log in to the website and complete the feedback form when available.",
                 'cta_url' => $requestsUrl,
                 'cta_label' => 'Open Request List',
             ],

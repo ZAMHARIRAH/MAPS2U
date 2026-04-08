@@ -4,17 +4,33 @@
     <div class="landing-hero-backdrop"></div>
     <div class="landing-hero-content landing-hero-shell">
         <h1>MAPS2U</h1>
-        <div class="landing-role-buttons landing-role-buttons-centered">
-            <a class="btn primary role-cta" href="{{ route('admin.login') }}">ADMIN</a>
-            <a class="btn secondary role-cta" href="{{ route('technician.login') }}">TECHNICIAN</a>
-            <a class="btn accent role-cta" href="{{ route('client.login') }}">CLIENT</a>
+        <p class="landing-hero-subtitle"> </p>
+        <div class="landing-role-buttons landing-role-buttons-centered single-cta-wrap">
+            <a class="btn accent role-cta single-role-cta" href="{{ route('client.login') }}">JOB REQUEST</a>
         </div>
     </div>
 </section>
 
 <section class="landing-info-stack">
-    <article class="panel landing-panel" id="about">
-        <h3>About Us</h3>
+    <article class="panel landing-panel" id="announcement">
+        <div class="panel-head compact-head">
+            <div>
+                <h3>Announcement</h3>
+                <p class="helper-text"> </p>
+            </div>
+        </div>
+
+        @forelse($announcements as $announcement)
+            <div class="announcement-item">
+                <div class="announcement-item-head">
+                    <strong>{{ $announcement->title }}</strong>
+                    <span class="badge {{ $announcement->priorityBadgeClass() }}">{{ $announcement->priorityLabel() }}</span>
+                </div>
+                <p>{{ $announcement->content }}</p>
+            </div>
+        @empty
+            <p class="helper-text">No announcement available right now.</p>
+        @endforelse
     </article>
     <article class="panel landing-panel" id="contact">
         <h3>Contact Us</h3>

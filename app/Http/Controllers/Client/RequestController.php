@@ -78,6 +78,17 @@ class RequestController extends Controller
         ]);
     }
 
+
+    public function show(ClientRequest $clientRequest)
+    {
+        abort_unless($clientRequest->user_id === Auth::id(), 403);
+
+        return view('client.requests.show', [
+            'requestItem' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
+            'feedbackSections' => $this->feedbackSections(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         return $this->saveRequest($request, null);
@@ -96,6 +107,27 @@ class RequestController extends Controller
         abort_unless($clientRequest->user_id === Auth::id(), 403);
         abort_unless($clientRequest->status === ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW, 403);
 
+        if ($request->boolean('agree_all')) {
+            $ratings = [];
+            foreach ($this->feedbackSections() as $sectionKey => $section) {
+                foreach ($section['questions'] as $questionKey => $questionText) {
+                    data_set($ratings, "$sectionKey.$questionKey", 5);
+                }
+            }
+
+            $clientRequest->update([
+                'feedback' => [
+                    'ratings' => $ratings,
+                    'additional_comments' => '-',
+                    'submission_mode' => 'agree_all',
+                ],
+                'customer_review_submitted_at' => now(),
+                'status' => ClientRequest::STATUS_COMPLETED,
+            ]);
+
+            return back()->with('success', 'All feedback questions have been marked as Strongly Agree. Job marked as completed.');
+        }
+
         $rules = ['additional_comments' => ['nullable', 'string']];
         foreach ($this->feedbackSections() as $sectionKey => $section) {
             foreach ($section['questions'] as $questionKey => $questionText) {
@@ -108,7 +140,8 @@ class RequestController extends Controller
         $clientRequest->update([
             'feedback' => [
                 'ratings' => $validated['ratings'] ?? [],
-                'additional_comments' => $validated['additional_comments'] ?? null,
+                'additional_comments' => $validated['additional_comments'] ?? '-',
+                'submission_mode' => 'manual',
             ],
             'customer_review_submitted_at' => now(),
             'status' => ClientRequest::STATUS_COMPLETED,

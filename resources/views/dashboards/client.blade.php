@@ -5,9 +5,9 @@
         <div>
             <span class="hero-kicker">Client Command Center</span>
             <h1>Client Dashboard</h1>
-            <p>Welcome back, {{ $user->name }}. Track every request, know which jobs need your attention, and jump straight into resubmission or feedback when needed.</p>
+            <p>Welcome back, {{ $user->name }}.</p>
             <div class="hero-badge-row">
-                <span class="badge accented">{{ ucfirst(str_replace('_', ' ', $user->sub_role)) }}</span>
+                <span class="badge accented">{{ $user->roleLabel() }}</span>
                 <span class="badge neutral">Active Request Types: {{ $requestTypeCount }}</span>
                 @if($needActionCount > 0)
                     <span class="badge danger">Action Needed: {{ $needActionCount }}</span>
@@ -47,6 +47,29 @@
     </div>
 </div>
 
+@if($announcements->isNotEmpty())
+    <section class="announcement-banner-stack">
+        <div class="announcement-banner-head">
+            <div>
+                <span class="hero-kicker">Latest Update</span>
+                <h3>Announcements</h3>
+            </div>
+            <span class="badge info">{{ $announcements->count() }} Active</span>
+        </div>
+        <div class="announcement-banner-grid">
+            @foreach($announcements as $announcement)
+                <article class="announcement-banner-card priority-{{ $announcement->priority }}">
+                    <div class="announcement-item-head">
+                        <strong>{{ $announcement->title }}</strong>
+                        <span class="badge {{ $announcement->priorityBadgeClass() }}">{{ $announcement->priorityLabel() }}</span>
+                    </div>
+                    <p>{{ $announcement->content }}</p>
+                </article>
+            @endforeach
+        </div>
+    </section>
+@endif
+
 @if($needActionCount > 0)
     <div class="alert-card warning client-alert-banner">
         <strong>Action required.</strong>
@@ -79,7 +102,7 @@
     <div class="premium-section-head">
         <div>
             <h3>My Request Details</h3>
-            <p>Latest job activity, technician assignment, urgency level, and scheduled date in one place.</p>
+            <p> </p>
         </div>
         <div class="table-head-badges">
             <span class="header-chip">Live Job Tracking</span>
@@ -150,15 +173,23 @@
                             @if($request->status === \App\Models\ClientRequest::STATUS_REJECTED)
                                 <span class="helper-text">{{ $request->admin_approval_remark ?: 'Request rejected by admin.' }}</span>
                             @elseif($request->status === \App\Models\ClientRequest::STATUS_RETURNED)
-                                <a class="btn small accent" href="{{ route('client.requests.index', ['tab' => 'new', 'edit' => $request->id, 'form' => 1]) }}">Resubmit</a>
+                                <div class="client-action-stack"><a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a><a class="btn small accent" href="{{ route('client.requests.index', ['tab' => 'new', 'edit' => $request->id, 'form' => 1]) }}">Resubmit</a></div>
                             @elseif($request->status === \App\Models\ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW)
-                                <a class="btn small primary" href="{{ route('client.requests.index', ['tab' => 'new']) }}#feedback-{{ $request->id }}">Open Review</a>
+                                <div class="client-action-stack">
+                                    <a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a>
+                                    <a class="btn small primary" href="{{ route('client.requests.show', $request) }}#feedback-form">Open Review</a>
+                                    <form method="POST" action="{{ route('client.requests.feedback', $request) }}" style="display:inline;">
+                                        @csrf
+                                        @method('PUT')
+                                        <button class="btn small soft-success" type="submit" name="agree_all" value="1">Agree All</button>
+                                    </form>
+                                </div>
                             @elseif(data_get($request->inspect_data, 'add_related_job') && !$request->childRequests()->where('user_id', $user->id)->exists())
-                                <a class="btn small ghost" href="{{ route('client.requests.index', ['tab' => 'related', 'related_source' => $request->id, 'form' => 1]) }}">Fill Related Job</a>
+                                <div class="client-action-stack"><a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a><a class="btn small ghost" href="{{ route('client.requests.index', ['tab' => 'related', 'related_source' => $request->id, 'form' => 1]) }}">Fill Related Job</a></div>
                             @elseif($request->related_request_id)
                                 <span class="helper-text">Related request submitted</span>
                             @else
-                                <span class="helper-text">No action</span>
+                                <a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a>
                             @endif
                         </td>
                     </tr>

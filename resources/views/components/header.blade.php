@@ -5,17 +5,17 @@
     if ($user?->isAdmin()) {
         $scopedRoles = $user->handledClientRoles();
         $financePending = \App\Models\ClientRequest::whereHas('user', fn ($query) => $query->whereIn('sub_role', $scopedRoles))
-            ->whereNotNull('invoice_uploaded_at')
+            ->whereNotNull('technician_completed_at')
             ->whereNull('finance_completed_at')
-            ->latest('invoice_uploaded_at')
+            ->latest('technician_completed_at')
             ->take(5)
             ->get();
 
         $notifications = $financePending->map(function ($item) {
             return [
-                'title' => $item->request_code . ' invoice uploaded',
-                'body' => 'Technician uploaded invoice. Open Finance to complete payment form.',
-                'url' => route('admin.finance.show', $item),
+                'title' => $item->request_code . ' finance evidence ready',
+                'body' => 'Signed quotation and payment receipts are ready. Open Finance to complete payment form.',
+                'url' => auth()->user()->isViewer() ? route('admin.finance.index') : route('admin.finance.show', $item),
             ];
         });
     } elseif ($user?->isTechnician()) {
@@ -72,13 +72,16 @@
 
 <header class="topbar">
     <div class="topbar-left">
+        @auth
+            <button class="icon-btn sidebar-toggle-btn" type="button" data-sidebar-toggle aria-label="Toggle navigation">☰</button>
+        @endauth
         <div class="brand-mark">MAPS2U</div>
     </div>
 
     @guest
         <nav class="top-nav">
             <a href="{{ route('home') }}">Home</a>
-            <a href="{{ route('home') }}#about">About Us</a>
+            <a href="{{ route('home') }}#announcement">Announcement</a>
             <a href="{{ route('home') }}#contact">Contact Us</a>
         </nav>
     @else
@@ -86,7 +89,16 @@
     @endguest
 
     <div class="topbar-right">
-        @auth
+        @guest
+            <a class="icon-btn login-icon-link" href="{{ route('admin.login') }}" aria-label="Admin login" title="Admin login">
+                <span class="login-icon-symbol">🛡️</span>
+                <span class="login-icon-label">Admin</span>
+            </a>
+            <a class="icon-btn login-icon-link" href="{{ route('technician.login') }}" aria-label="Technician login" title="Technician login">
+                <span class="login-icon-symbol">🛠️</span>
+                <span class="login-icon-label">Technician</span>
+            </a>
+        @else
             <div class="dropdown-shell">
                 <button class="icon-btn" type="button" data-bell-toggle aria-label="Notifications">🔔</button>
                 <div class="dropdown-panel narrow">
@@ -115,6 +127,6 @@
                     </form>
                 </div>
             </div>
-        @endauth
+        @endguest
     </div>
 </header>

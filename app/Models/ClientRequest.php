@@ -20,6 +20,7 @@ class ClientRequest extends Model
     public const STATUS_REJECTED = 'Rejected';
     public const STATUS_CLIENT_RETURNED = 'Client Has Returned Request';
     public const STATUS_PENDING_TECHNICIAN_FEEDBACK = 'Pending Technician Feedback';
+    public const STATUS_FINANCE_PENDING = 'Finance Pending';
 
     protected $fillable = [
         'request_code',
@@ -44,6 +45,7 @@ class ClientRequest extends Model
         'scheduled_date',
         'scheduled_time',
         'payment_receipt_files',
+        'payment_receipt_history',
         'payment_type',
         'inspect_data',
         'inspection_sessions',
@@ -62,6 +64,8 @@ class ClientRequest extends Model
         'admin_approved_at',
         'assigned_at',
         'quotation_return_remark',
+        'technician_log_started_at',
+        'technician_log_started_label',
     ];
 
     protected $casts = [
@@ -77,6 +81,7 @@ class ClientRequest extends Model
         'technician_review_updated_at' => 'datetime',
         'scheduled_date' => 'date',
         'payment_receipt_files' => 'array',
+        'payment_receipt_history' => 'array',
         'inspect_data' => 'array',
         'inspection_sessions' => 'array',
         'invoice_files' => 'array',
@@ -89,6 +94,7 @@ class ClientRequest extends Model
         'assigned_at' => 'datetime',
         'feedback' => 'array',
         'customer_review_submitted_at' => 'datetime',
+        'technician_log_started_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -100,6 +106,24 @@ class ClientRequest extends Model
                 ])->saveQuietly();
             }
         });
+    }
+
+
+    public static function adminVisibleStatusOptions(): array
+    {
+        return [
+            self::STATUS_UNDER_REVIEW,
+            self::STATUS_RETURNED,
+            self::STATUS_PENDING_APPROVAL,
+            self::STATUS_APPROVED,
+            self::STATUS_WORK_IN_PROGRESS,
+            self::STATUS_PENDING_CUSTOMER_REVIEW,
+            self::STATUS_PENDING_TECHNICIAN_FEEDBACK,
+            self::STATUS_CLIENT_RETURNED,
+            self::STATUS_FINANCE_PENDING,
+            self::STATUS_COMPLETED,
+            self::STATUS_REJECTED,
+        ];
     }
 
     public function user() { return $this->belongsTo(User::class); }
@@ -186,8 +210,8 @@ class ClientRequest extends Model
             return self::STATUS_REJECTED;
         }
 
-        if (!empty($this->invoice_files)) {
-            return 'Finance Pending';
+        if ($this->hasFinancePending()) {
+            return self::STATUS_FINANCE_PENDING;
         }
 
         return $this->status;
@@ -203,16 +227,57 @@ class ClientRequest extends Model
             return 'danger';
         }
 
-        if (!empty($this->invoice_files)) {
+        if ($this->hasFinancePending()) {
             return 'warning';
         }
 
         return $this->statusBadgeClass();
     }
 
+
     public function activeInspectionSession(): ?array
     {
         return collect($this->inspection_sessions ?? [])->first(fn ($session) => empty($session['ended_at']));
+    }
+
+    public function hasActiveTechnicianLog(): bool
+    {
+        return !empty($this->technician_log_started_at);
+    }
+
+    public function technicianLogStartedAt(): ?Carbon
+    {
+        $label = trim((string) ($this->technician_log_started_label ?? ''));
+        if ($label !== '') {
+            foreach (['Y-m-d H:i:s', 'd M Y H:i', 'd M Y H:i:s', 'd M Y h:i A', 'd M Y h:i:s A'] as $format) {
+                try {
+                    return Carbon::createFromFormat($format, $label, 'Asia/Kuala_Lumpur');
+                } catch (\Throwable $e) {
+                }
+            }
+
+            try {
+                return Carbon::parse($label, 'Asia/Kuala_Lumpur');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (!$this->technician_log_started_at) {
+            return null;
+        }
+
+        if ($this->technician_log_started_at instanceof Carbon) {
+            return $this->technician_log_started_at->copy()->timezone('Asia/Kuala_Lumpur');
+        }
+
+        return Carbon::parse($this->technician_log_started_at, 'UTC')->timezone('Asia/Kuala_Lumpur');
+    }
+
+    public function technicianLogStartedLabel(): ?string
+    {
+        $startedAt = $this->technicianLogStartedAt();
+
+        return $startedAt?->format('d M Y H:i');
     }
 
     public function latestInspectionSession(): ?array
@@ -246,7 +311,7 @@ class ClientRequest extends Model
 
     public function hasFinancePending(): bool
     {
-        return !empty($this->invoice_files) && !$this->finance_completed_at;
+        return (bool) $this->technician_completed_at && !$this->finance_completed_at && (bool) $this->approvedQuotation();
     }
 
     public function financeAmount(): ?float
@@ -276,11 +341,92 @@ class ClientRequest extends Model
 
     public function technicianProductivitySeconds(): ?int
     {
-        if (!$this->assigned_at || !$this->invoice_uploaded_at) {
+        if (!$this->assigned_at || !$this->technician_completed_at) {
             return null;
         }
 
-        return $this->invoice_uploaded_at->diffInSeconds($this->assigned_at);
+        return $this->technician_completed_at->diffInSeconds($this->assigned_at);
+    }
+
+    public function inspectionSessionDurationSeconds(array $session): int
+    {
+        $stored = $session['duration_seconds'] ?? null;
+        if (is_numeric($stored) && (int) $stored > 0) {
+            return (int) $stored;
+        }
+
+        $startedUnix = $session['started_at_unix'] ?? null;
+        $endedUnix = $session['ended_at_unix'] ?? null;
+        if (is_numeric($startedUnix) && is_numeric($endedUnix)) {
+            return max(0, (int) $endedUnix - (int) $startedUnix);
+        }
+
+        $startedAt = $this->parseMalaysiaSessionTime($session['started_at'] ?? null, $session['started_label'] ?? null);
+        $endedAt = $this->parseMalaysiaSessionTime($session['ended_at'] ?? null, $session['ended_label'] ?? null);
+        if (!$startedAt || !$endedAt) {
+            return 0;
+        }
+
+        try {
+            return max(0, $startedAt->diffInSeconds($endedAt, false));
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+
+    protected function parseMalaysiaSessionTime(?string $primary, ?string $label = null): ?Carbon
+    {
+        foreach ([$primary, $label] as $value) {
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+
+            foreach (['Y-m-d H:i:s', 'd M Y H:i', 'd M Y H:i:s', 'd M Y h:i A', 'd M Y h:i:s A'] as $format) {
+                try {
+                    return Carbon::createFromFormat($format, $value, 'Asia/Kuala_Lumpur');
+                } catch (\Throwable $e) {
+                }
+            }
+
+            try {
+                return Carbon::parse($value, 'Asia/Kuala_Lumpur');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return null;
+    }
+
+    public function totalInspectionDurationSeconds(): int
+    {
+        return (int) collect($this->inspection_sessions ?? [])->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
+    }
+
+    public function compiledDailyLogDescription(): string
+    {
+        return collect($this->inspection_sessions ?? [])
+            ->map(function ($session) {
+                $session = (array) $session;
+                $date = $session['date_label'] ?? null;
+                $start = $session['time_start'] ?? null;
+                $end = $session['time_end'] ?? null;
+                $durationSeconds = $this->inspectionSessionDurationSeconds($session);
+                $duration = $this->formattedDuration($durationSeconds);
+                $remark = trim((string) ($session['remark'] ?? '-'));
+
+                $parts = array_filter([
+                    $date,
+                    ($start || $end) ? trim(($start ?: '-') . ' - ' . ($end ?: '-')) : null,
+                    $duration !== '-' ? $duration : null,
+                    $remark !== '' ? $remark : '-',
+                ]);
+
+                return $parts ? '- ' . implode(' | ', $parts) : null;
+            })
+            ->filter()
+            ->implode("\n");
     }
 
     public function formattedDuration(?int $seconds): string
@@ -289,14 +435,25 @@ class ClientRequest extends Model
             return '-';
         }
 
-        $hours = intdiv($seconds, 3600);
+        $seconds = max(0, (int) $seconds);
+        $days = intdiv($seconds, 86400);
+        $hours = intdiv($seconds % 86400, 3600);
         $minutes = intdiv($seconds % 3600, 60);
         $remaining = $seconds % 60;
 
-        if ($hours > 0) {
-            return sprintf('%dh %02dm %02ds', $hours, $minutes, $remaining);
+        $parts = [];
+        if ($days > 0) {
+            $parts[] = $days . 'd';
+        }
+        if ($hours > 0 || $days > 0) {
+            $parts[] = sprintf('%02dh', $hours);
+        }
+        $parts[] = sprintf('%02dm', $minutes);
+        if ($days === 0) {
+            $parts[] = sprintf('%02ds', $remaining);
         }
 
-        return sprintf('%02dm %02ds', $minutes, $remaining);
+        return implode(' ', $parts);
     }
 }
+

@@ -6,6 +6,8 @@ use App\Models\ClientRequest;
 use App\Services\ClientCommunicationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
 
 class TechnicianRequestController extends Controller
 {
@@ -15,7 +17,7 @@ class TechnicianRequestController extends Controller
     public function index()
     {
         return view('technician.requests.index', [
-            'jobs' => ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest'])
+            'jobs' => ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
                 ->where('assigned_technician_id', Auth::id())
                 ->latest()
                 ->get(),
@@ -28,6 +30,16 @@ class TechnicianRequestController extends Controller
 
         return view('technician.requests.show', [
             'job' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
+        ]);
+    }
+
+    public function report(Request $request, ClientRequest $clientRequest)
+    {
+        abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
+
+        return view('technician.requests.report', [
+            'job' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
+            'printMode' => $request->boolean('print'),
         ]);
     }
 
@@ -88,7 +100,7 @@ class TechnicianRequestController extends Controller
 
         $clientRequest->update([
             'technician_review' => $review,
-            'technician_review_updated_at' => now(),
+            'technician_review_updated_at' => now('Asia/Kuala_Lumpur'),
             'status' => ClientRequest::STATUS_UNDER_REVIEW,
         ]);
 
@@ -186,7 +198,9 @@ class TechnicianRequestController extends Controller
 
         $clientRequest->update([
             'quotation_entries' => $entries,
-            'quotation_submitted_at' => now(),
+            'quotation_submitted_at' => now('Asia/Kuala_Lumpur'),
+            'quotation_return_remark' => null,
+            'approved_quotation_index' => null,
             'status' => ClientRequest::STATUS_PENDING_APPROVAL,
         ]);
 
@@ -202,22 +216,39 @@ class TechnicianRequestController extends Controller
         $data = $request->validate([
             'payment_receipt_files' => ['nullable', 'array'],
             'payment_receipt_files.*' => ['file', 'max:10240'],
-            'payment_type' => ['required', 'in:downpayment,full_payment'],
+            'payment_type' => ['required', 'in:balance,downpayment,full_payment'],
             'scheduled_date' => ['required', 'date'],
             'scheduled_time' => ['required', 'string', 'max:20'],
         ]);
 
+        $submittedAt = now('Asia/Kuala_Lumpur');
         $receiptFiles = $clientRequest->payment_receipt_files ?? [];
+        $newBatchFiles = [];
         foreach ($request->file('payment_receipt_files', []) as $file) {
-            $receiptFiles[] = [
+            $meta = [
                 'original_name' => $file->getClientOriginalName(),
                 'path' => $file->store('technician-payment-receipts', 'public'),
                 'mime_type' => $file->getClientMimeType(),
+                'uploaded_at' => $submittedAt->toDateTimeString(),
+                'payment_type' => $data['payment_type'],
+            ];
+            $receiptFiles[] = $meta;
+            $newBatchFiles[] = $meta;
+        }
+
+        $history = $clientRequest->payment_receipt_history ?? [];
+        if (!empty($newBatchFiles)) {
+            $history[] = [
+                'payment_type' => $data['payment_type'],
+                'uploaded_at' => $submittedAt->toDateTimeString(),
+                'uploaded_label' => $submittedAt->format('d M Y H:i:s'),
+                'files' => $newBatchFiles,
             ];
         }
 
         $clientRequest->update([
             'payment_receipt_files' => $receiptFiles,
+            'payment_receipt_history' => array_values($history),
             'payment_type' => $data['payment_type'],
             'scheduled_date' => $data['scheduled_date'],
             'scheduled_time' => $data['scheduled_time'],
@@ -234,55 +265,105 @@ class TechnicianRequestController extends Controller
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
         abort_if($clientRequest->technician_completed_at, 422, 'Job has been completed. Editing is locked.');
 
-        $request->validate([
+        $data = $request->validate([
             'timer_action' => ['required', 'in:start,stop'],
-            'timer_decision' => ['nullable', 'in:proceed,amend'],
-            'timer_remark' => ['nullable', 'string', 'max:255'],
+            'remark' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
+            'person_in_charge' => ['nullable', 'string'],
+            'verify_by' => ['nullable', 'string'],
         ]);
 
-        $sessions = $clientRequest->inspection_sessions ?? [];
-        $activeIndex = collect($sessions)->search(fn ($session) => empty($session['ended_at']));
+        if ($data['timer_action'] === 'start') {
+            abort_if($clientRequest->technician_log_started_at, 422, 'A technician log is already running.');
 
-        if ($request->input('timer_action') === 'start') {
-            abort_if($activeIndex !== false, 422, 'An inspection timer is already running.');
-
-            $sessions[] = [
-                'started_at' => now('Asia/Kuala_Lumpur')->toDateTimeString(),
-                'started_label' => now('Asia/Kuala_Lumpur')->format('d M Y H:i'),
-                'remark' => count($sessions) > 0 ? 'amend' : 'initial',
-            ];
-
+            $startedAt = now('Asia/Kuala_Lumpur');
             $clientRequest->update([
-                'inspection_sessions' => array_values($sessions),
+                'technician_log_started_at' => $startedAt->copy()->utc(),
+                'technician_log_started_label' => $startedAt->format('Y-m-d H:i:s'),
                 'status' => ClientRequest::STATUS_WORK_IN_PROGRESS,
             ]);
 
-            return back()->with('success', 'Inspection timer started successfully.');
+            return back()->with('success', 'Technician log started successfully.');
         }
 
-        abort_if($activeIndex === false, 422, 'No active inspection timer found.');
+        abort_if(!$clientRequest->technician_log_started_at, 422, 'No technician log is currently running.');
+
         $request->validate([
-            'timer_decision' => ['required', 'in:proceed,amend'],
+            'remark' => ['required', 'string'],
+            'attachments' => ['required', 'array', 'min:1'],
+            'attachments.*' => ['file', 'max:10240'],
+            'person_in_charge' => ['required', 'string'],
+            'verify_by' => ['required', 'string'],
         ]);
 
-        $startedAt = \Illuminate\Support\Carbon::parse($sessions[$activeIndex]['started_at']);
+        $startedAt = $this->resolveMalaysiaStartTime($clientRequest);
         $endedAt = now('Asia/Kuala_Lumpur');
-        $durationSeconds = $endedAt->diffInSeconds($startedAt);
+        $durationSeconds = max(0, $startedAt->diffInSeconds($endedAt, false));
 
-        $sessions[$activeIndex]['ended_at'] = $endedAt->toDateTimeString();
-        $sessions[$activeIndex]['ended_label'] = $endedAt->format('d M Y H:i');
-        $sessions[$activeIndex]['duration_seconds'] = $durationSeconds;
-        $sessions[$activeIndex]['decision'] = $request->input('timer_decision');
-        $sessions[$activeIndex]['remark'] = $request->input('timer_decision') === 'amend'
-            ? ($request->input('timer_remark') ?: 'amend')
-            : 'proceed';
+        $attachments = [];
+        foreach ($request->file('attachments', []) as $file) {
+            $attachments[] = [
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $file->store('technician-daily-logs', 'public'),
+                'mime_type' => $file->getClientMimeType(),
+            ];
+        }
+
+        $sessions = $clientRequest->inspection_sessions ?? [];
+        $sessions[] = [
+            'started_at' => $startedAt->format('Y-m-d H:i:s'),
+            'started_at_unix' => $startedAt->timestamp,
+            'started_label' => $startedAt->format('d M Y H:i:s'),
+            'ended_at' => $endedAt->format('Y-m-d H:i:s'),
+            'ended_at_unix' => $endedAt->timestamp,
+            'ended_label' => $endedAt->format('d M Y H:i:s'),
+            'date_label' => $endedAt->format('d M Y'),
+            'time_start' => $startedAt->format('H:i:s'),
+            'time_end' => $endedAt->format('H:i:s'),
+            'duration_seconds' => $durationSeconds,
+            'duration_label' => $clientRequest->formattedDuration($durationSeconds),
+            'remark' => $data['remark'],
+            'technician_name' => $clientRequest->assignedTechnician?->name,
+            'attachments' => $attachments,
+            'person_in_charge' => $data['person_in_charge'],
+            'verify_by' => $data['verify_by'],
+            'recorded_at' => $endedAt->format('Y-m-d H:i:s'),
+        ];
 
         $clientRequest->update([
             'inspection_sessions' => array_values($sessions),
+            'technician_log_started_at' => null,
+            'technician_log_started_label' => null,
             'status' => ClientRequest::STATUS_WORK_IN_PROGRESS,
         ]);
 
-        return back()->with('success', 'Inspection timer stopped successfully.');
+        return back()->with('success', 'Technician log saved successfully.');
+    }
+
+
+    protected function resolveMalaysiaStartTime(ClientRequest $clientRequest): Carbon
+    {
+        $label = trim((string) ($clientRequest->technician_log_started_label ?? ''));
+        if ($label !== '') {
+            foreach (['Y-m-d H:i:s', 'd M Y H:i', 'd M Y H:i:s', 'd M Y h:i A', 'd M Y h:i:s A'] as $format) {
+                try {
+                    return Carbon::createFromFormat($format, $label, 'Asia/Kuala_Lumpur');
+                } catch (\Throwable $e) {
+                }
+            }
+
+            try {
+                return Carbon::parse($label, 'Asia/Kuala_Lumpur');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if ($clientRequest->technician_log_started_at instanceof Carbon) {
+            return $clientRequest->technician_log_started_at->copy()->timezone('Asia/Kuala_Lumpur');
+        }
+
+        return Carbon::parse($clientRequest->technician_log_started_at, 'UTC')->timezone('Asia/Kuala_Lumpur');
     }
 
     public function saveInspectForm(Request $request, ClientRequest $clientRequest)
@@ -375,13 +456,12 @@ class TechnicianRequestController extends Controller
     public function submitCustomerService(Request $request, ClientRequest $clientRequest)
     {
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
-        abort_if(empty($clientRequest->invoice_files), 422, 'Upload invoice before completing the customer service report.');
-        abort_if(empty($clientRequest->inspection_sessions), 422, 'Start and stop inspection timer before completing the customer service report.');
+        abort_unless($clientRequest->inspect_data, 422, 'Submit the inspection form before completing the customer service report.');
+        abort_if(empty($clientRequest->inspection_sessions), 422, 'Complete at least one technician log before submitting the customer service report.');
 
         $data = $request->validate([
-            'description_of_work' => ['nullable', 'string'],
-            'suggestion_recommendation' => ['required', 'string'],
-            'attachments' => ['nullable', 'array'],
+            'suggestion_recommendation' => ['nullable', 'string'],
+            'attachments' => ['required', 'array', 'min:1'],
             'attachments.*' => ['file', 'max:10240'],
             'person_in_charge_signature' => ['required', 'string'],
             'verify_by_signature' => ['required', 'string'],
@@ -397,24 +477,36 @@ class TechnicianRequestController extends Controller
             ];
         }
 
+        $dailyLogAttachments = collect($clientRequest->inspection_sessions ?? [])
+            ->flatMap(fn ($session) => $session['attachments'] ?? [])
+            ->values()
+            ->all();
+
+        $submittedAt = now('Asia/Kuala_Lumpur');
         $report = [
             'technician_name' => $clientRequest->assignedTechnician?->name,
             'job_id' => $clientRequest->request_code,
-            'date_inspection' => $clientRequest->inspectionDate(),
+            'date_inspection' => $submittedAt->format('d M Y'),
+            'duration_of_work' => $clientRequest->formattedDuration($clientRequest->totalInspectionDurationSeconds()),
             'time_history' => array_values($clientRequest->inspection_sessions ?? []),
-            'description_of_work' => $data['description_of_work'] ?? null,
-            'suggestion_recommendation' => $data['suggestion_recommendation'],
+            'description_of_work' => $clientRequest->compiledDailyLogDescription(),
+            'suggestion_recommendation' => $data['suggestion_recommendation'] ?? null,
             'attachments' => $attachments,
+            'daily_log_attachments' => $dailyLogAttachments,
             'person_in_charge_signature' => $data['person_in_charge_signature'],
             'verify_by_signature' => $data['verify_by_signature'],
-            'submitted_at' => now()->toDateTimeString(),
+            'submitted_at' => $submittedAt->toDateTimeString(),
         ];
 
         $clientRequest->update([
             'customer_service_report' => $report,
-            'technician_completed_at' => now(),
+            'technician_completed_at' => $submittedAt,
+            'invoice_uploaded_at' => $submittedAt,
+            'status' => ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW,
         ]);
 
-        return back()->with('success', 'Customer service report submitted successfully. Technician completion has been recorded.');
+        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'invoice_uploaded');
+
+        return back()->with('success', 'Customer service report submitted successfully. Finance evidence is now ready and client feedback is available.');
     }
 }

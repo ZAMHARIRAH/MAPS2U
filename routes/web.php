@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ClientAccountController;
 use App\Http\Controllers\Admin\ClientRequestController;
 use App\Http\Controllers\Admin\DepartmentController;
@@ -57,8 +58,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/location-records/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
 
     Route::resource('departments', DepartmentController::class)->except(['show']);
+    Route::resource('announcements', AnnouncementController::class)->except(['show', 'destroy']);
+    Route::patch('/announcements/{announcement}/toggle', [AnnouncementController::class, 'toggle'])->name('announcements.toggle');
     Route::resource('request-types', RequestTypeController::class);
     Route::get('/incoming-requests', [ClientRequestController::class, 'index'])->name('incoming-requests.index');
+    Route::get('/incoming-requests/print-filtered', [ClientRequestController::class, 'filteredPrint'])->name('incoming-requests.print-filtered');
+    Route::get('/incoming-requests/{clientRequest}/print', [ClientRequestController::class, 'print'])->name('incoming-requests.print');
     Route::get('/incoming-requests/{clientRequest}', [ClientRequestController::class, 'show'])->name('incoming-requests.show');
     Route::post('/incoming-requests/{clientRequest}/decision', [ClientRequestController::class, 'reviewDecision'])->name('incoming-requests.decision');
     Route::post('/incoming-requests/{clientRequest}/assign', [ClientRequestController::class, 'assign'])->name('incoming-requests.assign');
@@ -68,6 +73,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('/reports/job-request', [ReportController::class, 'jobRequests'])->name('reports.job-request');
     Route::get('/reports/technician', [ReportController::class, 'technicians'])->name('reports.technician');
+    Route::get('/reports/technician/merged-documents', [ReportController::class, 'mergedTechnicianDocuments'])->name('reports.technician.merged');
+    Route::get('/reports/technician/{clientRequest}/job-report', [ReportController::class, 'technicianJobReport'])->name('reports.technician.job-report');
+    Route::get('/reports/technician/{clientRequest}/feedback-report', [ReportController::class, 'clientFeedbackReport'])->name('reports.technician.feedback-report');
 
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
     Route::get('/finance/{clientRequest}', [FinanceController::class, 'show'])->name('finance.show');
@@ -78,6 +86,7 @@ Route::prefix('technician')->name('technician.')->middleware(['auth', 'role:tech
     Route::get('/dashboard', [TechnicianDashboardController::class, 'index'])->name('dashboard');
     Route::get('/job-requests', [TechnicianRequestController::class, 'index'])->name('job-requests.index');
     Route::get('/job-requests/{clientRequest}', [TechnicianRequestController::class, 'show'])->name('job-requests.show');
+    Route::get('/job-requests/{clientRequest}/report', [TechnicianRequestController::class, 'report'])->name('job-requests.report');
     Route::post('/job-requests/{clientRequest}/return', [TechnicianRequestController::class, 'returnToClient'])->name('job-requests.return');
     Route::put('/job-requests/{clientRequest}/review', [TechnicianRequestController::class, 'saveReview'])->name('job-requests.review');
     Route::post('/job-requests/{clientRequest}/costing', [TechnicianRequestController::class, 'submitCosting'])->name('job-requests.costing');
@@ -92,6 +101,7 @@ Route::prefix('technician')->name('technician.')->middleware(['auth', 'role:tech
 Route::prefix('client')->name('client.')->middleware(['auth', 'role:client'])->group(function () {
     Route::get('/dashboard', [ClientDashboardController::class, 'index'])->name('dashboard');
     Route::get('/requests', [ClientRequestFormController::class, 'index'])->name('requests.index');
+    Route::get('/requests/{clientRequest}', [ClientRequestFormController::class, 'show'])->name('requests.show');
     Route::post('/requests', [ClientRequestFormController::class, 'store'])->name('requests.store');
     Route::put('/requests/{clientRequest}', [ClientRequestFormController::class, 'update'])->name('requests.update');
     Route::put('/requests/{clientRequest}/feedback', [ClientRequestFormController::class, 'submitFeedback'])->name('requests.feedback');

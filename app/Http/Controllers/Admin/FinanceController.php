@@ -9,32 +9,48 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Models\User;
 
 class FinanceController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $allRequests = ClientRequest::with(['requestType', 'assignedTechnician'])
-            ->whereNotNull('invoice_uploaded_at')
-            ->latest('invoice_uploaded_at')
-            ->get();
-        $requests = $allRequests->whereNull('finance_completed_at')->values();
+        /** @var User $admin */
+        $admin = $request->user();
+
+        $allRequests = ClientRequest::with(['user', 'requestType', 'assignedTechnician'])
+            ->whereNotNull('technician_completed_at')
+            ->whereHas('user', fn ($query) => $query->whereIn('sub_role', $admin->handledClientRoles()))
+            ->latest('technician_completed_at')
+            ->get()
+            ->filter(fn (ClientRequest $item) => (bool) $item->approvedQuotation())
+            ->values();
+
+        $requests = $admin->isViewer() ? $allRequests : $allRequests->whereNull('finance_completed_at')->values();
 
         return view('admin.finance.index', [
             'requests' => $requests,
-            'pendingCount' => $requests->count(),
+            'pendingCount' => $allRequests->whereNull('finance_completed_at')->count(),
             'completedCount' => $allRequests->whereNotNull('finance_completed_at')->count(),
+            'isViewer' => $admin->isViewer(),
         ]);
     }
 
-    public function show(ClientRequest $clientRequest): View
+    public function show(Request $request, ClientRequest $clientRequest): View
     {
-        $clientRequest->load(['requestType', 'assignedTechnician']);
-        return view('admin.finance.show', ['submission' => $clientRequest]);
+        /** @var User $admin */
+        $admin = $request->user();
+        abort_unless(in_array($clientRequest->user->sub_role, $admin->handledClientRoles(), true), 403);
+        abort_if($admin->isViewer() && !$clientRequest->finance_completed_at, 403, 'Finance form has not been uploaded yet.');
+
+        $clientRequest->load(['user', 'requestType', 'assignedTechnician']);
+        return view('admin.finance.show', ['submission' => $clientRequest, 'isViewer' => $admin->isViewer()]);
     }
 
     public function store(Request $request, ClientRequest $clientRequest): RedirectResponse
     {
+        abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
+
         $data = $request->validate([
             'reference_code' => ['required', 'string', 'max:255'],
             'filled_finance_pdf' => ['required', 'file', 'mimes:pdf', 'max:15360'],
@@ -43,19 +59,19 @@ class FinanceController extends Controller
         $admin = $request->user();
         $existing = $clientRequest->finance_form ?? [];
         $file = $request->file('filled_finance_pdf');
-        $pdfPath = 'finance-forms/' . Str::slug($clientRequest->request_code ?: 'request') . '-' . now()->format('YmdHis') . '.pdf';
+        $pdfPath = 'finance-forms/' . Str::slug($clientRequest->request_code ?: 'request') . '-' . now('Asia/Kuala_Lumpur')->format('YmdHis') . '.pdf';
         Storage::disk('public')->putFileAs('finance-forms', $file, basename($pdfPath));
 
         $financeForm = array_merge($existing, [
             'reference_code' => $data['reference_code'],
             'filled_pdf_path' => $pdfPath,
             'submitted_by' => $admin->name,
-            'submitted_at' => now()->toDateTimeString(),
+            'submitted_at' => now('Asia/Kuala_Lumpur')->toDateTimeString(),
         ]);
 
         $clientRequest->update([
             'finance_form' => $financeForm,
-            'finance_completed_at' => now(),
+            'finance_completed_at' => now('Asia/Kuala_Lumpur'),
         ]);
 
         return back()->with('success', 'Finance PDF saved successfully. Admin completion has been recorded.');

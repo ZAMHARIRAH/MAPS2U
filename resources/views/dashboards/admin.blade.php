@@ -40,17 +40,27 @@
 </section>
 
 <section class="panel" style="margin-top:20px;">
-    <div class="panel-head"><h3>Invoice Upload Alerts</h3><a class="btn small ghost" href="{{ route('admin.finance.index') }}">Open Finance</a></div>
+    <div class="panel-head"><h3>Finance Evidence Alerts</h3><a class="btn small ghost" href="{{ route('admin.finance.index') }}">Open Finance</a></div>
     <table class="table">
-        <thead><tr><th>Job ID</th><th>Client</th><th>Technician</th><th>Invoice Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Job ID</th><th>Client</th><th>Technician</th><th>Evidence Status</th><th>Action</th></tr></thead>
         <tbody>
             @forelse($financeAlerts as $item)
                 <tr>
                     <td>{{ $item->request_code }}</td>
                     <td>{{ $item->full_name }}</td>
                     <td>{{ $item->assignedTechnician?->name ?? '-' }}</td>
-                    <td><span class="badge warning">Invoice Uploaded</span></td>
-                    <td><a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">Open Finance Form</a></td>
+                    <td><span class="badge warning">Evidence Ready</span></td>
+                    <td>
+                        @if(auth()->user()->isViewer())
+                            @if($item->finance_completed_at)
+                                <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">View Finance Form</a>
+                            @else
+                                <span class="helper-text">Not uploaded yet</span>
+                            @endif
+                        @else
+                            <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">Open Finance Form</a>
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr><td colspan="5">No finance item is waiting right now.</td></tr>

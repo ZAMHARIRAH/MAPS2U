@@ -4,14 +4,20 @@
     $path = $file['path'] ?? null;
     $encodedPath = $path ? rtrim(strtr(base64_encode($path), '+/', '-_'), '=') : null;
     $url = $encodedPath ? route('files.show', ['encodedPath' => $encodedPath]) : null;
+    $downloadUrl = $encodedPath ? route('files.show', ['encodedPath' => $encodedPath, 'download' => 1]) : null;
 @endphp
 
 <div class="file-preview-card">
     <div class="file-preview-head">
         <strong>{{ $label ?? ($file['original_name'] ?? 'Attachment') }}</strong>
-        @if($url)
-            <a href="{{ $url }}" target="_blank">Open file</a>
-        @endif
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            @if($url)
+                <a href="{{ $url }}" target="_blank">Open file</a>
+            @endif
+            @if($downloadUrl)
+                <a href="{{ $downloadUrl }}" target="_blank">Download</a>
+            @endif
+        </div>
     </div>
 
     @if($url && str_contains($mime, 'image'))

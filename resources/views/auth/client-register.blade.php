@@ -4,7 +4,7 @@
     <section class="auth-side-panel scenic-panel">
         <span class="hero-kicker">MAPS2U REGISTRATION</span>
         <h1>Create Your Client Account</h1>
-        <p>Register once and manage every request, review, and update directly from the client portal.</p>
+        <p> </p>
     </section>
     <section class="auth-main-panel">
         <div class="auth-card premium-auth-card">

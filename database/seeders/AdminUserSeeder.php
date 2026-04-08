@@ -10,13 +10,30 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(['email' => 'admin.maps@maps2u.com'], [
-            'name' => 'Admin MAPS', 'phone_number' => '012-1111111', 'address' => 'MAPS2U HQ',
-            'role' => User::ROLE_ADMIN, 'sub_role' => User::ADMIN_MAPS, 'password' => 'AdminMaps123!'
+            'name' => 'Admin MAPS',
+            'phone_number' => '012-1111111',
+            'address' => 'MAPS2U HQ',
+            'role' => User::ROLE_ADMIN,
+            'sub_role' => User::ADMIN_MAPS,
+            'password' => 'AdminMaps123!',
         ]);
 
         User::updateOrCreate(['email' => 'admin.aim@maps2u.com'], [
-            'name' => 'Admin AIM', 'phone_number' => '012-2222222', 'address' => 'AIM HQ',
-            'role' => User::ROLE_ADMIN, 'sub_role' => User::ADMIN_AIM, 'password' => 'AdminAim123!'
+            'name' => 'Admin AIM',
+            'phone_number' => '012-2222222',
+            'address' => 'AIM HQ',
+            'role' => User::ROLE_ADMIN,
+            'sub_role' => User::ADMIN_AIM,
+            'password' => 'AdminAim123!',
+        ]);
+
+        User::updateOrCreate(['email' => 'viewer@maps2u.com'], [
+            'name' => 'Viewer',
+            'phone_number' => '012-3333333',
+            'address' => 'MAPS2U HQ',
+            'role' => User::ROLE_ADMIN,
+            'sub_role' => User::ADMIN_VIEWER,
+            'password' => 'Viewer123!',
         ]);
     }
 }

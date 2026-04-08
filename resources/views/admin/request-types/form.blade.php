@@ -5,7 +5,7 @@
     <div class="page-header builder-header">
         <div>
             <h1>{{ $mode === 'create' ? 'Create' : 'Edit' }} Request Type</h1>
-            <p>Build request questions in a cleaner step-by-step layout for MAPS2U admins.</p>
+            <p> </p>
         </div>
         <a class="btn ghost" href="{{ route('admin.request-types.index') }}">Back</a>
     </div>
@@ -16,23 +16,7 @@
             @method('PUT')
         @endif
 
-        <div class="builder-intro-grid">
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 1</span>
-                <h3>Request Overview</h3>
-                <p>Set the request title and choose which client role can access this request type.</p>
-            </div>
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 2</span>
-                <h3>Extra Controls</h3>
-                <p>Turn on urgency or file upload requirements so the request form behaves the way you need.</p>
-            </div>
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 3</span>
-                <h3>Questions Builder</h3>
-                <p>Add as many questions as needed. Use paragraph text for long instructions or detailed prompts.</p>
-            </div>
-        </div>
+    
 
         <div class="builder-config-grid">
             <section class="builder-section builder-main-section">
@@ -58,9 +42,9 @@
                                 <small>Visible only to HQ Staff client accounts.</small>
                             </label>
                             <label class="role-choice-card">
-                                <input type="radio" name="role_scope" value="teacher_principal" {{ old('role_scope', $requestType->role_scope) === 'teacher_principal' ? 'checked' : '' }}>
-                                <strong>Teacher / Principal</strong>
-                                <small>Visible only to teacher and principal client accounts.</small>
+                                <input type="radio" name="role_scope" value="kindergarten" {{ old('role_scope', $requestType->role_scope) === 'kindergarten' ? 'checked' : '' }}>
+                                <strong>Kindergarten</strong>
+                                <small>Visible only to kindergarten client accounts.</small>
                             </label>
                             <label class="role-choice-card">
                                 <input type="radio" name="role_scope" value="both" {{ old('role_scope', $requestType->role_scope ?: 'both') === 'both' ? 'checked' : '' }}>
@@ -113,7 +97,7 @@
                 <div>
                     <span class="builder-step">Question Builder</span>
                     <h3>Questions</h3>
-                    <p class="helper-text">Create structured questions for the selected request type.</p>
+                    <p class="helper-text"> </p>
                 </div>
                 <button class="btn secondary small" type="button" id="add-question-btn">Add Question</button>
             </div>

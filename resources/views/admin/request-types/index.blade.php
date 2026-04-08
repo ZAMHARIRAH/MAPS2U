@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => 'Request Types'])
 @section('content')
-<div class="page-header"><div><h1>Request Types</h1><p>Create and manage dynamic request forms.</p></div><a class="btn primary" href="{{ route('admin.request-types.create') }}">Add Request Type</a></div>
+<div class="page-header"><div><h1>Request Types</h1><p> </p></div><a class="btn primary" href="{{ route('admin.request-types.create') }}">Add Request Type</a></div>
 <section class="panel">
     <table class="table">
         <thead>

@@ -10,7 +10,7 @@ class RequestType extends Model
     use HasFactory;
 
     public const TARGET_HQ = 'hq_staff';
-    public const TARGET_BRANCH = 'teacher_principal';
+    public const TARGET_KINDERGARTEN = 'kindergarten';
     public const TARGET_BOTH = 'both';
 
     protected $fillable = [
@@ -46,14 +46,14 @@ class RequestType extends Model
             return $query->whereIn('role_scope', [self::TARGET_HQ, self::TARGET_BOTH]);
         }
 
-        return $query->whereIn('role_scope', [self::TARGET_BRANCH, self::TARGET_BOTH]);
+        return $query->whereIn('role_scope', [self::TARGET_KINDERGARTEN, self::TARGET_BOTH]);
     }
 
     public function roleScopeLabel(): string
     {
         return match ($this->role_scope) {
             self::TARGET_HQ => 'HQ Staff',
-            self::TARGET_BRANCH => 'Teacher / Principal',
+            self::TARGET_KINDERGARTEN => 'Kindergarten',
             default => 'Both',
         };
     }

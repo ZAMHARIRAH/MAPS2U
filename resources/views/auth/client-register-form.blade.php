@@ -11,8 +11,7 @@
     <label>Role</label>
     <div class="radio-card-grid">
         <label class="radio-card"><input type="radio" name="sub_role" value="hq_staff" {{ old('sub_role') === 'hq_staff' ? 'checked' : '' }} required><span>HQ Staff</span></label>
-        <label class="radio-card"><input type="radio" name="sub_role" value="teacher" {{ old('sub_role') === 'teacher' ? 'checked' : '' }}><span>Teacher</span></label>
-        <label class="radio-card"><input type="radio" name="sub_role" value="principal" {{ old('sub_role') === 'principal' ? 'checked' : '' }}><span>Principal</span></label>
+        <label class="radio-card"><input type="radio" name="sub_role" value="kindergarten" {{ old('sub_role') === 'kindergarten' ? 'checked' : '' }}><span>Kindergarten</span></label>
     </div>
     <label>Password</label>
     <input type="password" name="password" required>

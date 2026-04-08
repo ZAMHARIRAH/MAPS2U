@@ -5,6 +5,32 @@
         return $path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null;
     };
     $approved = $submission->approvedQuotation();
+    $paymentHistory = collect($submission->payment_receipt_history ?? [])->values();
+    if ($paymentHistory->isEmpty() && !empty($submission->payment_receipt_files)) {
+        $paymentHistory = collect([[
+            'payment_type' => $submission->payment_type,
+            'uploaded_label' => optional($submission->updated_at)->format('d M Y H:i:s'),
+            'files' => $submission->payment_receipt_files,
+        ]]);
+    }
+    $paymentHistoryFiles = $paymentHistory
+        ->flatMap(function ($history) {
+            $history = (array) $history;
+            return collect($history['files'] ?? [])->map(function ($file) use ($history) {
+                $file = (array) $file;
+                $file['history_payment_type'] = $history['payment_type'] ?? null;
+                $file['history_uploaded_label'] = $history['uploaded_label'] ?? ($history['uploaded_at'] ?? null);
+                return $file;
+            });
+        })
+        ->filter(fn ($file) => !empty($file['path']))
+        ->unique(fn ($file) => ($file['path'] ?? '') . '|' . ($file['original_name'] ?? ''))
+        ->values();
+    $dailyLogs = collect($submission->inspection_sessions ?? [])->map(function ($session) use ($submission) {
+        $session = (array) $session;
+        $session['resolved_duration'] = $submission->formattedDuration($submission->inspectionSessionDurationSeconds($session));
+        return $session;
+    })->values();
     $workflowSteps = [
         \App\Models\ClientRequest::STATUS_UNDER_REVIEW,
         \App\Models\ClientRequest::STATUS_PENDING_APPROVAL,
@@ -16,8 +42,12 @@
     ];
     $currentWorkflowIndex = array_search($submission->status, $workflowSteps, true);
 @endphp
+<style>.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.28);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.daily-log-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.daily-log-card-head strong{display:block;font-size:15px}.daily-log-card-head span{font-size:12px;color:#64748b}.preview-grid.single-column{grid-template-columns:1fr}</style>
 
 <section class="panel request-hero-card">
+    @if(auth()->user()->isViewer())
+        <div class="alert-card info" style="margin-bottom:16px;"><strong>Monitoring mode</strong><div> </div></div>
+    @endif
     <div class="page-header request-hero-head">
         <div>
             <h1>{{ $submission->request_code }}</h1>
@@ -26,7 +56,7 @@
         <div class="actions-inline">
             <span class="badge {{ $submission->urgencyBadgeClass() }}">{{ $submission->urgencyLabel() }}</span>
             <span class="badge {{ $submission->adminWorkflowBadgeClass() }}">{{ $submission->adminWorkflowLabel() }}</span>
-            @if(!empty($submission->invoice_files))<a class="btn accent" href="{{ route('admin.finance.show', $submission) }}">Open Finance</a>@endif<a class="btn ghost" href="{{ route('admin.incoming-requests.index') }}">Back</a>
+<a class="btn success" href="{{ route('admin.incoming-requests.print', ['clientRequest' => $submission, 'print' => 1]) }}" target="_blank">Print</a>@if($submission->hasFinancePending() && (!auth()->user()->isViewer() || $submission->finance_completed_at))<a class="btn accent" href="{{ route('admin.finance.show', $submission) }}">{{ auth()->user()->isViewer() ? 'View Finance' : 'Open Finance' }}</a>@endif<a class="btn ghost" href="{{ route('admin.incoming-requests.index') }}">Back</a>
         </div>
     </div>
 
@@ -96,7 +126,7 @@
             <div class="summary-stack">
                 <div class="summary-card compact-summary"><strong>Approval Status</strong><span class="badge {{ $submission->adminApprovalBadgeClass() }}">{{ $submission->adminApprovalLabel() }}</span></div>
                 @if($submission->admin_approval_remark)
-                    <div class="summary-card compact-summary"><strong>Remark</strong><span>{{ $submission->admin_approval_remark }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Notes</strong><span>{{ $submission->admin_approval_remark }}</span></div>
                 @endif
             </div>
             @if($submission->status === \App\Models\ClientRequest::STATUS_REJECTED || $submission->admin_approval_status === 'rejected')
@@ -104,15 +134,21 @@
                     <strong>Request Rejected</strong>
                     <div>{{ $submission->admin_approval_remark ?: 'No rejection remark provided.' }}</div>
                 </div>
-            @else
-                <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" style="margin-top:14px;">
+            @elseif($submission->admin_approval_status !== 'approved')
+                <div class="action-row" style="margin-top:14px;">
+                    <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}">
+                        @csrf
+                        <input type="hidden" name="decision" value="approved">
+                        <button class="btn primary" type="submit">Approved</button>
+                    </form>
+                    <button class="btn danger" type="button" onclick="toggleBlock('admin-reject-form')">Reject</button>
+                </div>
+                <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" id="admin-reject-form" class="hidden-form-block{{ old('decision') === 'rejected' ? ' show-block' : '' }}" style="margin-top:14px;">
                     @csrf
-                    <label>Admin Remark</label>
-                    <textarea name="admin_approval_remark" placeholder="Required when rejecting the request.">{{ old('admin_approval_remark', $submission->admin_approval_remark) }}</textarea>
-                    <div class="action-row" style="margin-top:12px;">
-                        <button class="btn primary" type="submit" name="decision" value="approved">Approve</button>
-                        <button class="btn danger" type="submit" name="decision" value="rejected">Reject</button>
-                    </div>
+                    <input type="hidden" name="decision" value="rejected">
+                    <label>Reject Remark</label>
+                    <textarea name="admin_approval_remark" placeholder="Please explain why this request is rejected." required>{{ old('admin_approval_remark') }}</textarea>
+                    <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Submit</button></div>
                 </form>
             @endif
         </section>
@@ -125,14 +161,14 @@
                 <div class="inline-title-row">
                     <span>{{ $submission->assignedTechnician?->name ?? 'Not assigned yet' }}</span>
                     @if($submission->admin_approval_status === 'approved')
-                        <button class="btn tiny ghost" type="button" onclick="toggleBlock('assign-tech-form')">Edit</button>
+                        <span class="helper-text">Ready to update</span>
                     @endif
                 </div>
             </div>
             @if($submission->admin_approval_status !== 'approved')
                 <div class="alert-card info">Approve this request first. Then technician assignment will be enabled.</div>
             @else
-            <form method="POST" action="{{ route('admin.incoming-requests.assign', $submission) }}" id="assign-tech-form" class="hidden-form-block">
+            <form method="POST" action="{{ route('admin.incoming-requests.assign', $submission) }}" id="assign-tech-form" style="margin-top:14px;">
                 @csrf
                 <label>Select Technician</label>
                 <div class="inline-action-row">
@@ -161,12 +197,12 @@
                         <div class="summary-card compact-summary"><strong>Visit Site Remark</strong><span>{{ data_get($submission->technician_review, 'visit_site_remark') }}</span></div>
                     @endif
                     @if(!empty(data_get($submission->technician_review, 'visit_site_files', [])))
-                        <div class="summary-card compact-summary"><strong>Visit Site Files</strong>
-                            <ul class="attachment-list compact media-file-list">
+                        <div class="summary-card compact-summary span-2"><strong>Visit Site Files</strong>
+                            <div class="preview-grid two-up" style="margin-top:12px;">
                                 @foreach(data_get($submission->technician_review, 'visit_site_files', []) as $file)
-                                    <li><a href="{{ $fileUrl($file['path']) }}" target="_blank">{{ $file['original_name'] }}</a></li>
+                                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Visit site file'])
                                 @endforeach
-                            </ul>
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -219,20 +255,6 @@
         </section>
         @endif
 
-        <section class="panel shaded-panel">
-            <div class="panel-head"><h3>Workflow Tracker</h3></div>
-            <div class="workflow-timeline">
-                @foreach($workflowSteps as $step)
-                    <div class="timeline-item {{ $submission->status === $step ? 'active' : '' }} {{ $currentWorkflowIndex !== false && array_search($step, $workflowSteps, true) < $currentWorkflowIndex ? 'done' : '' }}">
-                        <span class="timeline-dot"></span>
-                        <div>
-                            <strong>{{ $step }}</strong>
-                            <small>{{ $submission->status === $step ? 'Current stage' : 'Workflow step' }}</small>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </section>
     </aside>
 </div>
 
@@ -253,15 +275,40 @@
                         @if(!empty($quote['summary_report']))
                             <p class="helper-text" style="margin-top:8px;">{{ $quote['summary_report'] }}</p>
                         @endif
-                        <div class="action-row" style="margin-top:10px;">
+                        <div class="action-row" style="margin-top:10px; align-items:flex-start;">
                             @if(!empty($quote['file']['path']))
                                 <a class="btn small ghost" href="{{ $fileUrl($quote['file']['path']) }}" target="_blank">View File</a>
                             @endif
-                            <form method="POST" action="{{ route('admin.incoming-requests.approve-quotation', $submission) }}">
-                                @csrf
-                                <input type="hidden" name="approved_quotation_index" value="{{ $quoteNumber }}">
-                                <button class="btn small {{ $submission->approved_quotation_index === $quoteNumber ? 'accent' : 'primary' }}" type="submit">{{ $submission->approved_quotation_index === $quoteNumber ? 'Approved' : 'Approve' }}</button>
-                            </form>
+                        </div>
+                        @if(!empty($quote['summary_files']))
+                            <div class="board-section" style="margin-top:12px;">
+                                <div class="panel-head compact"><h4>Supporting Files</h4></div>
+                                <div class="preview-grid two-up" style="margin-top:12px;">
+                                    @foreach($quote['summary_files'] as $file)
+                                        @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Supporting file'])
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                        <div style="margin-top:12px;">
+                            <label>Approval Signature</label>
+                            @if($submission->approved_quotation_index === $quoteNumber && !empty($quote['admin_signature']))
+                                <div class="signature-image-card" style="margin-top:8px;"><img src="{{ $quote['admin_signature'] }}" alt="Approval signature"></div>
+                                <div class="action-row" style="margin-top:8px;"><span class="badge success">Approved</span></div>
+                            @elseif(!$submission->approved_quotation_index)
+                                <form method="POST" action="{{ route('admin.incoming-requests.approve-quotation', $submission) }}">
+                                    @csrf
+                                    <input type="hidden" name="approved_quotation_index" value="{{ $quoteNumber }}">
+                                    <canvas class="signature-pad admin-signature-pad" data-target="approval-signature-{{ $quoteNumber }}"></canvas>
+                                    <input type="hidden" name="approval_signature" id="approval-signature-{{ $quoteNumber }}" required>
+                                    <div class="action-row" style="margin-top:8px;">
+                                        <button class="btn tiny ghost signature-clear" type="button">Clear</button>
+                                        <button class="btn small primary" type="submit">Approve & Send</button>
+                                    </div>
+                                </form>
+                            @else
+                                <div class="action-row" style="margin-top:8px;"><span class="badge neutral">Not selected</span></div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -279,70 +326,61 @@
         @endif
     </section>
 
-    <section class="panel shaded-panel">
+        <section class="panel shaded-panel">
         <div class="panel-head"><h3>Execution Snapshot</h3></div>
-        @if($approved)
-            <div class="summary-stack">
-                <div class="summary-card compact-summary"><strong>Approved Quotation</strong><span>Quotation {{ $submission->approved_quotation_index }}</span></div>
-                <div class="summary-card compact-summary"><strong>Company</strong><span>{{ $approved['company_name'] ?? '-' }}</span></div>
-                <div class="summary-card compact-summary"><strong>Amount</strong><span>RM {{ number_format((float) ($approved['amount'] ?? 0), 2) }}</span></div>
-            </div>
-            @if(!empty($approved['file']['path']))
-                @php($mime = $approved['file']['mime_type'] ?? '')
-                <div class="board-section">
-                    @if(str_contains($mime, 'image'))
-                        <img src="{{ $fileUrl($approved['file']['path']) }}" alt="Approved quotation" class="preview-image">
-                    @elseif(str_contains($mime, 'pdf'))
-                        <object data="{{ $fileUrl($approved['file']['path']) }}" type="application/pdf" class="file-embed"></object>
-                        <a href="{{ $fileUrl($approved['file']['path']) }}" target="_blank">Open PDF</a>
-                    @else
-                        <a href="{{ $fileUrl($approved['file']['path']) }}" target="_blank">{{ $approved['file']['original_name'] }}</a>
-                    @endif
-                </div>
-            @endif
-        @else
-            <div class="alert-card info">Approved quotation will appear here after admin selects one quotation.</div>
-        @endif
-
         <div class="board-section field-pair-grid">
             <div class="summary-card compact-summary"><strong>Payment Type</strong><span>{{ $submission->payment_type ? ucfirst(str_replace('_', ' ', $submission->payment_type)) : '-' }}</span></div>
             <div class="summary-card compact-summary"><strong>Schedule</strong><span>{{ optional($submission->scheduled_date)->format('d M Y') ?: '-' }} {{ $submission->scheduled_time ?: '' }}</span></div>
         </div>
 
-        @if(!empty($submission->payment_receipt_files))
+        @if($paymentHistoryFiles->isNotEmpty())
             <div class="board-section">
-                <div class="panel-head compact"><h4>Payment Receipts</h4></div>
-                <ul class="attachment-list compact media-file-list">
-                    @foreach($submission->payment_receipt_files as $file)
-                        <li><a href="{{ $fileUrl($file['path']) }}" target="_blank">{{ $file['original_name'] }}</a></li>
+                <div class="panel-head compact"><h4>Payment Receipt History Log</h4></div>
+                <ul class="attachment-list compact media-file-list" style="margin-top:12px;">
+                    @foreach($paymentHistoryFiles as $file)
+                        <li>
+                            <a href="{{ $fileUrl($file['path']) }}" target="_blank">{{ $file['original_name'] ?? 'Receipt' }}</a>
+                            <span class="helper-text">- {{ $file['history_payment_type'] ? ucfirst(str_replace('_', ' ', $file['history_payment_type'])) : 'Receipt Upload' }} @if(!empty($file['history_uploaded_label'])) | {{ $file['history_uploaded_label'] }} @endif</span>
+                        </li>
                     @endforeach
                 </ul>
             </div>
         @endif
-
-        @if(!empty($submission->invoice_files))
-            <div class="board-section">
-                <div class="panel-head compact"><h4>Invoices Uploaded</h4><a class="btn tiny accent" href="{{ route('admin.finance.show', $submission) }}">Finance Form</a></div>
-                <div class="preview-grid two-up">
-                    @foreach($submission->invoice_files as $file)
-                        @include('components.file-preview', ['file' => $file, 'label' => $file['original_name']])
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        @if($submission->customer_service_report)
-            <div class="board-section">
-                <div class="panel-head compact"><h4>Customer Service Report</h4></div>
-                <div class="field-pair-grid">
-                    <div class="summary-card compact-summary"><strong>Technician</strong><span>{{ data_get($submission->customer_service_report, 'technician_name') ?: '-' }}</span></div>
-                    <div class="summary-card compact-summary"><strong>Date Inspection</strong><span>{{ data_get($submission->customer_service_report, 'date_inspection') ?: '-' }}</span></div>
-                    <div class="summary-card compact-summary span-2"><strong>Suggestion / Recommendation</strong><span>{{ data_get($submission->customer_service_report, 'suggestion_recommendation') ?: '-' }}</span></div>
-                </div>
-            </div>
-        @endif
     </section>
 </div>
+
+
+
+<section class="panel shaded-panel" style="margin-top:20px;">
+    <div class="panel-head"><h3>Technician Daily Log</h3></div>
+
+    @if($dailyLogs->isNotEmpty())
+        <div class="daily-log-compact-grid">
+            @foreach($dailyLogs as $session)
+                <article class="daily-log-card compact-log-card">
+                    <div class="daily-log-card-head">
+                        <div>
+                            <strong>{{ $session['date_label'] ?? '-' }}</strong>
+                            <span>{{ $session['time_start'] ?? '-' }} - {{ $session['time_end'] ?? '-' }}</span>
+                        </div>
+                        <span class="badge neutral">{{ $session['resolved_duration'] ?? '-' }}</span>
+                    </div>
+                    <p class="helper-text" style="margin:8px 0 0;">{{ $session['remark'] ?? '-' }}</p>
+                    @php($sessionFiles = collect($session['attachments'] ?? [])->filter(fn ($file) => str_contains(strtolower($file['mime_type'] ?? ''), 'image') || str_contains(strtolower($file['mime_type'] ?? ''), 'pdf'))->values())
+                    @if($sessionFiles->isNotEmpty())
+                        <div class="preview-grid two-up" style="margin-top:12px;">
+                            @foreach($sessionFiles as $file)
+                                @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Daily log attachment'])
+                            @endforeach
+                        </div>
+                    @endif
+                </article>
+            @endforeach
+        </div>
+    @else
+        <div class="alert-card info">No technician daily log has been recorded yet.</div>
+    @endif
+</section>
 
 <section class="panel shaded-panel" style="margin-top:20px;">
     <div class="panel-head"><h3>Inspection Snapshot</h3></div>
@@ -384,9 +422,56 @@
         <div class="alert-card info">Inspection form has not been submitted by the technician yet.</div>
     @endif
 </section>
+
+@if($submission->customer_service_report)
+<section class="panel shaded-panel" style="margin-top:20px;">
+    <div class="panel-head"><h3>Customer Service Report</h3></div>
+    <div class="field-pair-grid">
+        <div class="summary-card compact-summary"><strong>Technician</strong><span>{{ data_get($submission->customer_service_report, 'technician_name') ?: '-' }}</span></div>
+        <div class="summary-card compact-summary"><strong>Date Inspection</strong><span>{{ data_get($submission->customer_service_report, 'date_inspection') ?: '-' }}</span></div>
+        <div class="summary-card compact-summary"><strong>Duration Of Work</strong><span>{{ data_get($submission->customer_service_report, 'duration_of_work') ?: '-' }}</span></div>
+        <div class="summary-card compact-summary"><strong>Submitted At</strong><span>{{ data_get($submission->customer_service_report, 'submitted_at') ?: '-' }}</span></div>
+        <div class="summary-card compact-summary span-2"><strong>Description Of Work</strong><span>{!! nl2br(e(data_get($submission->customer_service_report, 'description_of_work') ?: '-')) !!}</span></div>
+        <div class="summary-card compact-summary span-2"><strong>Suggestion / Recommendation</strong><span>{{ data_get($submission->customer_service_report, 'suggestion_recommendation') ?: '-' }}</span></div>
+    </div>
+    @if(!empty(data_get($submission->customer_service_report, 'attachments', [])))
+        <div class="preview-grid two-up" style="margin-top:12px;">
+            @foreach(data_get($submission->customer_service_report, 'attachments', []) as $file)
+                @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'CSR attachment'])
+            @endforeach
+        </div>
+    @endif
+    @if(data_get($submission->customer_service_report, 'person_in_charge_signature') || data_get($submission->customer_service_report, 'verify_by_signature'))
+        <div class="signature-display-grid" style="margin-top:14px;">
+            @if(data_get($submission->customer_service_report, 'person_in_charge_signature'))<div class="signature-image-card"><strong>Person in Charge</strong><img src="{{ data_get($submission->customer_service_report, 'person_in_charge_signature') }}" alt="PIC signature"></div>@endif
+            @if(data_get($submission->customer_service_report, 'verify_by_signature'))<div class="signature-image-card"><strong>Verify By</strong><img src="{{ data_get($submission->customer_service_report, 'verify_by_signature') }}" alt="Verify signature"></div>@endif
+        </div>
+    @endif
+</section>
+@endif
 @endif
 
 <script>
 function toggleBlock(id){const el=document.getElementById(id);if(el){el.classList.toggle('show-block');}}
+</script>
+<script>
+function bindSignaturePad(canvas) {
+  if (!canvas || canvas.dataset.bound === '1') return;
+  canvas.dataset.bound = '1';
+  const target = document.getElementById(canvas.dataset.target);
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  const ratio = window.devicePixelRatio || 1;
+  const resize = () => { const rect = canvas.getBoundingClientRect(); ctx.setTransform(1,0,0,1,0,0); canvas.width = rect.width * ratio; canvas.height = rect.height * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 2; ctx.lineCap = 'round'; };
+  resize();
+  const point = (e) => { const rect = canvas.getBoundingClientRect(); const source = e.touches ? e.touches[0] : e; return { x: source.clientX - rect.left, y: source.clientY - rect.top }; };
+  const start = (e) => { drawing = true; const p = point(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); };
+  const move = (e) => { if (!drawing) return; const p = point(e); ctx.lineTo(p.x, p.y); ctx.stroke(); target.value = canvas.toDataURL('image/png'); e.preventDefault(); };
+  const stop = () => { if (!drawing) return; drawing = false; target.value = canvas.toDataURL('image/png'); };
+  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', stop);
+  canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', stop);
+  canvas.parentElement.querySelector('.signature-clear')?.addEventListener('click', () => { ctx.clearRect(0,0,canvas.width,canvas.height); target.value = ''; });
+}
+document.querySelectorAll('.admin-signature-pad').forEach(bindSignaturePad);
 </script>
 @endsection

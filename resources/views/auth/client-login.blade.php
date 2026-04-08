@@ -7,8 +7,7 @@
         <p>Login to submit a new request, review job progress, resubmit returned forms, and complete customer feedback.</p>
         <div class="badge-row compact">
             <span class="badge neutral">HQ Staff</span>
-            <span class="badge neutral">Teacher</span>
-            <span class="badge neutral">Principal</span>
+            <span class="badge neutral">Kindergarten</span>
         </div>
     </section>
 

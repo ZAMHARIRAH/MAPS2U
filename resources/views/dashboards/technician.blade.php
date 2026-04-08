@@ -4,7 +4,7 @@
 <div class="page-header premium-page-header">
     <div>
         <h1>Technician Dashboard</h1>
-        <p>Welcome back, {{ $user->name }}. Here is the latest overview of your assigned job requests.</p>
+        <p>Welcome back, {{ $user->name }}. </p>
     </div>
     <a class="btn primary" href="{{ route('technician.job-requests.index') }}">Open All Job Requests</a>
 </div>
@@ -32,6 +32,7 @@
                     <th>Job ID</th>
                     <th>Client</th>
                     <th>Type</th>
+                    <th>Urgency</th>
                     <th>Status</th>
                     <th>Location</th>
                     <th>Action</th>
@@ -43,12 +44,13 @@
                         <td class="table-primary-cell">{{ $job->request_code }}</td>
                         <td>{{ $job->full_name }}</td>
                         <td>{{ $job->requestType->name }}</td>
+                        <td><span class="badge {{ $job->urgencyBadgeClass() }}">{{ $job->urgencyLabel() }}</span></td>
                         <td><span class="badge {{ $job->technicianStatusBadgeClass() }}">{{ $job->technicianStatusLabel() }}</span></td>
                         <td>{{ $job->location?->name ?? '-' }}</td>
                         <td><a class="btn small ghost" href="{{ route('technician.job-requests.show', $job) }}">View</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="6">No job request assigned yet.</td></tr>
+                    <tr><td colspan="7">No job request assigned yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

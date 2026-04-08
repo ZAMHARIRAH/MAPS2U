@@ -89,7 +89,7 @@ class RequestTypeController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'role_scope' => ['required', Rule::in(['hq_staff', 'teacher_principal', 'both'])],
+            'role_scope' => ['required', Rule::in(['hq_staff', 'kindergarten', 'both'])],
             'urgency_enabled' => ['nullable', 'boolean'],
             'attachment_required' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],

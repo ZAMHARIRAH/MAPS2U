@@ -9,31 +9,50 @@
         @if($user->isAdmin())
             <a href="{{ route('admin.dashboard') }}">Dashboard</a>
             <a href="{{ route('profile.show') }}">My Profile</a>
-            <a href="{{ route('admin.technicians.index') }}">Manage Technician</a>
-            <details class="nav-group" {{ request()->routeIs('admin.request-types.*') || request()->routeIs('admin.incoming-requests.*') ? 'open' : '' }}>
-                <summary>Request</summary>
-                <div class="nav-submenu">
-                    <a href="{{ route('admin.request-types.index') }}">Request Types</a>
-                    <a href="{{ route('admin.incoming-requests.index') }}">Incoming Requests</a>
-                </div>
-            </details>
-            <a href="{{ route('admin.finance.index') }}">Finance</a>
-            <details class="nav-group" {{ request()->routeIs('admin.locations.*') ? 'open' : '' }}>
-                <summary>Locations</summary>
-                <div class="nav-submenu">
-                    <a href="{{ route('admin.locations.index', 'hq') }}">HQ Locations</a>
-                    <a href="{{ route('admin.locations.index', 'branch') }}">Branches</a>
-                </div>
-            </details>
-            <a href="{{ route('admin.departments.index') }}">Departments</a>
-            <details class="nav-group" {{ request()->routeIs('admin.reports.*') ? 'open' : '' }}>
-                <summary>Report</summary>
-                <div class="nav-submenu">
-                    <a href="{{ route('admin.reports.job-request') }}">Job Request</a>
-                    <a href="{{ route('admin.reports.technician') }}">Technician</a>
-                </div>
-            </details>
-            <a href="{{ route('admin.accounts.index') }}">View Account</a>
+            @if($user->isViewer())
+                <details class="nav-group" {{ request()->routeIs('admin.incoming-requests.*') ? 'open' : '' }}>
+                    <summary>Monitoring</summary>
+                    <div class="nav-submenu">
+                        <a href="{{ route('admin.incoming-requests.index') }}">All Request</a>
+                        <a href="{{ route('admin.finance.index') }}">Finance</a>
+                        <a href="{{ route('admin.accounts.index') }}">View Account</a>
+                    </div>
+                </details>
+                <details class="nav-group" {{ request()->routeIs('admin.reports.*') ? 'open' : '' }}>
+                    <summary>Report</summary>
+                    <div class="nav-submenu">
+                        <a href="{{ route('admin.reports.job-request') }}">Job Request</a>
+                        <a href="{{ route('admin.reports.technician') }}">Technician</a>
+                    </div>
+                </details>
+            @else
+                <a href="{{ route('admin.technicians.index') }}">Manage Technician</a>
+                <details class="nav-group" {{ request()->routeIs('admin.request-types.*') || request()->routeIs('admin.incoming-requests.*') ? 'open' : '' }}>
+                    <summary>Request</summary>
+                    <div class="nav-submenu">
+                        <a href="{{ route('admin.incoming-requests.index') }}">All Request</a>
+                        <a href="{{ route('admin.request-types.index') }}">Request Type</a>
+                    </div>
+                </details>
+                <a href="{{ route('admin.finance.index') }}">Finance</a>
+                <details class="nav-group" {{ request()->routeIs('admin.locations.*') ? 'open' : '' }}>
+                    <summary>Locations</summary>
+                    <div class="nav-submenu">
+                        <a href="{{ route('admin.locations.index', 'hq') }}">HQ Locations</a>
+                        <a href="{{ route('admin.locations.index', 'branch') }}">Branches</a>
+                    </div>
+                </details>
+                <a href="{{ route('admin.departments.index') }}">Departments</a>
+                <a href="{{ route('admin.announcements.index') }}" class="{{ request()->routeIs('admin.announcements.*') ? 'active-nav-link' : '' }}">Announcements</a>
+                <details class="nav-group" {{ request()->routeIs('admin.reports.*') ? 'open' : '' }}>
+                    <summary>Report</summary>
+                    <div class="nav-submenu">
+                        <a href="{{ route('admin.reports.job-request') }}">Job Request</a>
+                        <a href="{{ route('admin.reports.technician') }}">Technician</a>
+                    </div>
+                </details>
+                <a href="{{ route('admin.accounts.index') }}">View Account</a>
+            @endif
         @elseif($user->isTechnician())
             <a href="{{ route('technician.dashboard') }}">Dashboard</a>
             <a href="{{ route('technician.job-requests.index') }}">Job Request</a>

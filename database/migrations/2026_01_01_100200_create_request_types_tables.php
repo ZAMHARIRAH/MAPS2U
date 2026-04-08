@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('request_types', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->enum('role_scope', ['hq_staff', 'teacher_principal', 'both'])->default('both');
+            $table->enum('role_scope', ['hq_staff', 'kindergarten', 'both'])->default('both');
             $table->boolean('urgency_enabled')->default(false);
             $table->boolean('attachment_required')->default(false);
             $table->boolean('is_active')->default(true);

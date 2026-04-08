@@ -52,7 +52,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone_number' => ['required', 'string', 'max:30'],
             'address' => ['required', 'string', 'max:1000'],
-            'sub_role' => ['required', Rule::in([User::CLIENT_HQ, User::CLIENT_TEACHER, User::CLIENT_PRINCIPAL])],
+            'sub_role' => ['required', Rule::in([User::CLIENT_HQ, User::CLIENT_KINDERGARTEN])],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
         User::create([
