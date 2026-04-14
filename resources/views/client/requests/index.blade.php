@@ -34,7 +34,7 @@
 @if($requests->where('status', \App\Models\ClientRequest::STATUS_RETURNED)->count())
     <div class="alert-card warning client-alert-banner">
         <strong>Returned request detected.</strong>
-        Technician requested resubmission.
+        Technician requested resubmission for one or more jobs. Review the remark shown in the request list and resubmit the same form.
     </div>
 @endif
 
@@ -45,7 +45,7 @@
         <div class="premium-section-head">
             <div>
                 <h3>My Requests</h3>
-                <p> </p>
+                <p>Track current status, urgency, technician assignment, and jump straight into resubmission or customer review.</p>
             </div>
             <div class="table-head-badges">
                 <a class="btn accent" href="{{ route('client.requests.index', ['tab' => 'new', 'form' => 1]) }}">Add Request</a>
@@ -138,7 +138,7 @@
                             <td colspan="7">
                                 <div class="empty-state-card">
                                     <strong>No request submitted.</strong>
-                                    <p class="helper-text"> </p>
+                                    <p class="helper-text">Use the Add Request button above to create your first request.</p>
                                 </div>
                             </td>
                         </tr>
@@ -154,7 +154,7 @@
         <div class="premium-section-head">
             <div>
                 <h3>Related Job Request Forms</h3>
-                <p> </p>
+                <p>These are parent jobs where the technician requested a follow-up related job. Submit from here only when you want the new request to be linked.</p>
             </div>
             <div class="table-head-badges">
                 <span class="header-chip">Related Queue</span>
@@ -197,7 +197,7 @@
                             <td colspan="6">
                                 <div class="empty-state-card">
                                     <strong>No related job form is waiting.</strong>
-                                    <p class="helper-text"> </p>
+                                    <p class="helper-text">New requests created from the New Request submenu will stay independent and will not be linked automatically.</p>
                                 </div>
                             </td>
                         </tr>
@@ -216,7 +216,7 @@
             <div>
                 <span class="hero-kicker">{{ $isEditing ? 'Resubmit Existing Request' : ($isRelatedMode ? 'Create Related Request' : 'Create New Request') }}</span>
                 <h3>{{ $isEditing ? 'Resubmit Request Form' : ($isRelatedMode ? 'Create Related Job Form' : 'Create New Request') }}</h3>
-                <p> </p>
+                <p>{{ $isRelatedMode ? 'Main setup details below are copied from the parent job. You only need to update urgency, new remark details, and new supporting files.' : 'Form fields below will change automatically based on the request type you choose.' }}</p>
             </div>
             <a class="btn small ghost" href="{{ route('client.requests.index', ['tab' => $activeTab]) }}">Back to List</a>
         </div>
@@ -231,19 +231,19 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Requester Information</h4>
-                        <span> </span>
+                        <span>Auto-filled from your profile.</span>
                     </div>
                 </div>
                 <div class="client-identity-grid">
                     <div class="meta-tile">
                         <span>Full Name</span>
                         <strong>{{ $user->name }}</strong>
-                        <small> </small>
+                        <small>Managed from profile settings.</small>
                     </div>
                     <div class="meta-tile">
                         <span>Phone Number</span>
                         <strong>{{ $user->phone_number }}</strong>
-                        <small> </small>
+                        <small>Update profile if you need to change it.</small>
                     </div>
                 </div>
             </div>
@@ -252,18 +252,18 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Request Setup</h4>
-                        <span> </span>
+                        <span>Select where and what kind of support you need.</span>
                     </div>
                 </div>
                 @if($isRelatedMode)
                     <div class="premium-meta-grid client-meta-grid inherited-grid">
-                        <div class="meta-tile"><span>Parent Job</span><strong>{{ $relatedSourceRequest->request_code }}</strong><small> </small></div>
-                        <div class="meta-tile"><span>Request Type</span><strong>{{ $relatedSourceRequest->requestType?->name ?? '-' }}</strong><small> </small></div>
-                        <div class="meta-tile"><span>Location</span><strong>{{ $relatedSourceRequest->location?->name ?? '-' }}</strong><small> </small></div>
+                        <div class="meta-tile"><span>Parent Job</span><strong>{{ $relatedSourceRequest->request_code }}</strong><small>This submission will be linked to the earlier job.</small></div>
+                        <div class="meta-tile"><span>Request Type</span><strong>{{ $relatedSourceRequest->requestType?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
+                        <div class="meta-tile"><span>{{ $user->isSsu() ? 'Request For' : 'Location' }}</span><strong>{{ $relatedSourceRequest->location?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
                         @if($user->sub_role === \App\Models\User::CLIENT_HQ)
-                            <div class="meta-tile"><span>Department</span><strong>{{ $relatedSourceRequest->department?->name ?? '-' }}</strong><small> </small></div>
+                            <div class="meta-tile"><span>Department</span><strong>{{ $relatedSourceRequest->department?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
                         @endif
-                        <div class="meta-tile"><span>Task Title</span><strong>{{ $taskTitle ?: '-' }}</strong><small> </small></div>
+                        <div class="meta-tile"><span>Task Title</span><strong>{{ $taskTitle ?: '-' }}</strong><small>Reference title from the earlier request.</small></div>
                     </div>
                     <input type="hidden" name="related_source_id" value="{{ $relatedSourceRequest->id }}">
                     <input type="hidden" name="related_request_id" value="{{ $relatedSourceRequest->id }}">
@@ -286,9 +286,9 @@
                             </div>
                         @endif
                         <div>
-                            <label>Location</label>
+                            <label>{{ $user->isSsu() ? 'Request For' : 'Location' }}</label>
                             <select name="location_id" required>
-                                <option value="">Select location</option>
+                                <option value="">{{ $user->isSsu() ? 'Select branch' : 'Select location' }}</option>
                                 @foreach($locations as $location)
                                     <option value="{{ $location->id }}" {{ old('location_id', $editingRequest?->location_id) == $location->id ? 'selected' : '' }}>{{ $location->name }}</option>
                                 @endforeach
@@ -311,7 +311,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Urgency Needed</h4>
-                        <span> </span>
+                        <span>Select the urgency level that best matches your current request.</span>
                     </div>
                 </div>
                 <div class="urgency-grid">
@@ -337,7 +337,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Supporting Files</h4>
-                        <span> </span>
+                        <span>Upload any file type needed to explain the issue clearly.</span>
                     </div>
                 </div>
                 <input type="file" name="attachments[]" multiple>
@@ -355,7 +355,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Request Questions</h4>
-                        <span> </span>
+                        <span>Questions below will appear after you select the request type.</span>
                     </div>
                 </div>
                 <div id="dynamic-questions"></div>
@@ -368,6 +368,7 @@
 
 <script>
 const requestTypes = @json($requestTypes);
+const taskTitles = @json($taskTitles ?? []);
 const selectedOldType = '{{ old('request_type_id', $editingRequest?->request_type_id ?? $relatedSourceRequest?->request_type_id) }}';
 const oldAnswers = @json(old('answers', $editingRequest?->answers ?? []));
 const relatedMode = @json($isRelatedMode);
@@ -421,7 +422,7 @@ function renderClientQuestions() {
             html += `<textarea name="answers[${question.id}]">${escapeHtml(oldAnswers[question.id] || '')}</textarea>`;
         } else if (relatedMode) {
             const sourceValue = sourceAnswers?.[question.id];
-            if (question.question_type === 'radio') {
+            if (question.question_type === 'radio' || question.question_type === 'task_title') {
                 html += `<div class="readonly-answer-box">${escapeHtml(sourceValue?.value || '-')}</div>`;
                 if (sourceValue?.value) {
                     html += `<input type="hidden" name="answers[${question.id}][value]" value="${escapeHtml(sourceValue.value)}">`;
@@ -447,9 +448,12 @@ function renderClientQuestions() {
                     }
                 });
             }
-        } else if (question.question_type === 'radio') {
+        } else if (question.question_type === 'radio' || question.question_type === 'task_title') {
             html += '<div class="stack-list">';
-            question.options.forEach(option => {
+            const radioOptions = question.question_type === 'task_title'
+                ? taskTitles.map(item => ({ option_text: item.title, allows_other_text: false }))
+                : question.options;
+            radioOptions.forEach(option => {
                 const isOtherOption = !!option.allows_other_text;
                 const checked = oldAnswers?.[question.id]?.value === option.option_text ? 'checked' : '';
                 html += `<label class="option-block ${isOtherOption ? 'option-block-other' : ''}"><span class="option-choice"><input type="radio" name="answers[${question.id}][value]" value="${option.option_text}" ${checked}> <span>${option.option_text}</span></span>${isOtherOption ? `<input type="text" class="other-input" name="answers[${question.id}][other]" value="${escapeHtml(oldAnswers?.[question.id]?.other || '')}" placeholder="Please specify" ${checked ? '' : 'style="display:none;"'}>` : ''}</label>`;

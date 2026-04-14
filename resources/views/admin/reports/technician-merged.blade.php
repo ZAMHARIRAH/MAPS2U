@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Technician Reports</title>
+<title>Merged Technician Reports</title>
 <style>
 :root{--line:#111827;--muted:#64748b;--soft:#f8fafc;--soft2:#eef2f7}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#edf2f7}
-body{padding:20px}
+body{padding:14px}
 .toolbar{width:min(100%,1040px);margin:0 auto 14px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
-.btn{padding:9px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#111827;text-decoration:none;font-size:13px;line-height:1.2;cursor:pointer}
+.btn{padding:9px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#111827;text-decoration:none;font-size:11px;line-height:1.2;cursor:pointer}
 .btn.primary{background:#0f172a;color:#fff;border-color:#0f172a}
-.page{width:min(100%,1040px);margin:0 auto;background:#fff;padding:20px;box-shadow:0 10px 28px rgba(15,23,42,.08);border-radius:14px}
-.page-title{text-align:center;font-size:22px;font-weight:700;margin:0 0 6px}
-.page-sub{text-align:center;font-size:13px;color:var(--muted);margin:0 0 16px}
+.page{width:min(100%,1040px);margin:0 auto;background:#fff;padding:14px;box-shadow:0 10px 28px rgba(15,23,42,.08);border-radius:14px}
+.page-title{text-align:center;font-size:18px;font-weight:700;margin:0 0 6px}
+.page-sub{text-align:center;font-size:11px;color:var(--muted);margin:0 0 10px}
 .stamp-card{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}.stamp-item{border:1px solid #d1d5db;border-radius:10px;padding:10px;background:#fcfcfd}.stamp-item strong{display:block;font-size:11px;text-transform:uppercase;color:#374151;margin-bottom:6px}.stamp-item span{font-size:14px;font-weight:700}
 .document-page{border:1.6px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px;page-break-after:always;break-after:page;background:#fff}
 .document-page.last{page-break-after:auto;break-after:auto}
@@ -23,12 +23,12 @@ body{padding:20px}
 .top-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .box{border:1px solid #d1d5db;border-radius:12px;padding:12px;background:#fcfcfd;page-break-inside:avoid;break-inside:avoid}.box h3{text-align:center;font-size:15px;margin:0 0 10px}
 .list{display:grid;gap:8px}.row{border:1px solid #e5e7eb;border-radius:8px;padding:8px;background:#fff}.row strong{display:block;font-size:11px;text-transform:uppercase;color:#374151;margin-bottom:4px}.row div,.row span{font-size:12px;line-height:1.4;word-break:break-word}
-.images{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.images.single{grid-template-columns:1fr}.image-card{border:1px solid #d1d5db;border-radius:10px;padding:8px;background:#fff}.image-card img,.image-card iframe{width:100%;height:180px;object-fit:contain;background:#f8fafc;border-radius:8px;display:block;border:none}.image-card .label{font-size:11px;color:#374151;margin-top:6px;line-height:1.3;word-break:break-word}
+.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.images.single{grid-template-columns:1fr}.image-card{border:1px solid #d1d5db;border-radius:8px;padding:6px;background:#fff;break-inside:avoid;page-break-inside:avoid}.image-card img,.image-card iframe{width:100%;height:120px;object-fit:contain;background:#f8fafc;border-radius:6px;display:block;border:none}.image-card .label{font-size:10px;color:#374151;margin-top:4px;line-height:1.25;word-break:break-word}
 .table-box{border:1px solid #d1d5db;border-radius:12px;overflow:hidden}.table-title{text-align:center;font-size:15px;font-weight:700;padding:10px;border-bottom:1px solid #d1d5db;background:#fff}
-table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.report-table td,.feedback-table th,.feedback-table td{border:1px solid #111827;padding:7px;font-size:11px;vertical-align:top;line-height:1.35}.report-table th,.feedback-table th{background:#f1f5f9;text-align:left}.report-table img,.report-table iframe{width:100%;max-height:120px;object-fit:contain;border-radius:6px;background:#fff;border:none;display:block}.file-grid{display:grid;gap:8px}.muted{color:var(--muted)}.cell-small{white-space:normal}
+table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.report-table td,.feedback-table th,.feedback-table td{border:1px solid #111827;padding:5px 6px;font-size:10px;vertical-align:top;line-height:1.3}.report-table th,.feedback-table th{background:#f1f5f9;text-align:left}.report-table img,.report-table iframe{width:100%;max-height:95px;object-fit:contain;border-radius:6px;background:#fff;border:none;display:block}.file-grid{display:grid;gap:6px}.muted{color:var(--muted)}.cell-small{white-space:normal}
 .rating-badge{display:inline-flex;align-items:center;justify-content:center;min-width:42px;min-height:28px;padding:4px 10px;border-radius:999px;background:#e8f3ff;color:#0b5f82;font-weight:700}.feedback-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.small-card{border:1px solid #d1d5db;border-radius:10px;padding:10px;background:#fff}.small-card strong{display:block;font-size:11px;text-transform:uppercase;color:#374151;margin-bottom:6px}.small-card span{font-size:14px;font-weight:700}
-@page{size:A4 portrait;margin:8mm}
-@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;font-size:10px;zoom:.88;-webkit-print-color-adjust:exact;print-color-adjust:exact}.toolbar{display:none!important}.page{width:auto!important;margin:0!important;padding:0!important;box-shadow:none!important;border-radius:0!important}.document-page{margin:0 0 10px;border:none;padding:0}.box,.row,tr,td,th{break-inside:avoid;page-break-inside:avoid}.image-card img,.image-card iframe{height:150px}.report-table img,.report-table iframe{max-height:100px}}
+@page{size:A4 portrait;margin:6mm}
+@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;font-size:10px;zoom:.8;-webkit-print-color-adjust:exact;print-color-adjust:exact}.toolbar{display:none!important}.page{width:auto!important;margin:0!important;padding:0!important;box-shadow:none!important;border-radius:0!important}.document-page{margin:0 0 8px;border:none;padding:0}.box,.row{break-inside:avoid;page-break-inside:avoid}.images{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.image-card img,.image-card iframe{height:100px}.report-table img,.report-table iframe{max-height:84px}}
 @media (max-width:900px){.stamp-card,.meta,.top-grid,.feedback-summary{grid-template-columns:1fr}.images{grid-template-columns:1fr}}
 </style>
 </head>
@@ -42,8 +42,8 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
     <button class="btn primary" onclick="window.print()">Print</button>
 </div>
 <div class="page">
-    <h1 class="page-title">Technician Reports</h1>
-    <p class="page-sub">  </p>
+    <h1 class="page-title">Merged Technician Reports</h1>
+    <p class="page-sub">Completed jobs only. Each completed job is shown as two documents in one view: technician report first, then client feedback review on the next page.</p>
     <div class="stamp-card">
         <div class="stamp-item"><strong>Admin Clicked View For Print</strong><span>{{ $viewedAt }}</span></div>
         <div class="stamp-item"><strong>Printed Documents</strong><span>{{ $items->count() }} completed job(s)</span></div>
@@ -84,7 +84,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
             </div>
             <div class="top-grid">
                 <section class="box">
-                    <h3>Client Details</h3>
+                    <h3>Client Details ( include request form )</h3>
                     <div class="list">
                         <div class="row"><strong>Client Name</strong><span>{{ $item->full_name }}</span></div>
                         <div class="row"><strong>Phone Number</strong><span>{{ $item->phone_number }}</span></div>
@@ -99,7 +99,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
                                 <div>
                                     @if($question->question_type === 'remark')
                                         {{ $answer ?: '-' }}
-                                    @elseif($question->question_type === 'radio')
+                                    @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
                                         {{ data_get($answer, 'value', '-') }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
                                     @elseif($question->question_type === 'date_range')
                                         {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
@@ -124,7 +124,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
                 </section>
 
                 <section class="box">
-                    <h3>Technician review</h3>
+                    <h3>Technician review + approved quotation + inspect form</h3>
                     <div class="list">
                         <div class="row"><strong>Clarification</strong><span>{{ ucfirst(str_replace('_', ' ', data_get($review, 'clarification_level', '-'))) }}</span></div>
                         <div class="row"><strong>Repair Channel</strong><span>{{ ucfirst(str_replace('_', ' ', data_get($review, 'repair_channel', '-'))) }}</span></div>
@@ -166,7 +166,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
                                 <td class="cell-small">{{ $session['time_start'] ?? '-' }}</td>
                                 <td class="cell-small">{{ $session['time_end'] ?? '-' }}</td>
                                 <td class="cell-small">{{ $session['resolved_duration'] ?? '-' }}</td>
-                                <td>{{ $session['remark'] ?? '-' }}</td>
+                                <td>{{ $session['remark'] ?? '-' }}@if(!empty($session['verify_by_signed_at_label']))<div class="muted" style="margin-top:6px;">Verify signed: {{ $session['verify_by_signed_at_label'] }}</div>@endif @if(!empty($session['verify_by']))<div class="file-grid" style="margin-top:8px;">@include('components.print-media-card', ['file' => ['path' => null, 'data_url' => $session['verify_by'], 'mime_type' => 'image/png', 'original_name' => 'Verify Signature'], 'label' => 'Verify Signature'])</div>@endif</td>
                                 <td>
                                     @php($files = collect($session['attachments'] ?? [])->filter(fn ($file) => str_contains(strtolower($file['mime_type'] ?? ''), 'image') || str_contains(strtolower($file['mime_type'] ?? ''), 'pdf'))->values())
                                     @if($files->isEmpty())

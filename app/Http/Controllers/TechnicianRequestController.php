@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClientRequest;
+use App\Models\Vendor;
 use App\Services\ClientCommunicationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +31,7 @@ class TechnicianRequestController extends Controller
 
         return view('technician.requests.show', [
             'job' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
+            'vendors' => Vendor::orderBy('company_name')->get(),
         ]);
     }
 
@@ -112,6 +114,32 @@ class TechnicianRequestController extends Controller
         return back()->with('success', 'Technician review submitted successfully.');
     }
 
+    public function appendReviewRemark(Request $request, ClientRequest $clientRequest)
+    {
+        abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
+        abort_if($clientRequest->technician_completed_at, 422, 'Job has been completed. Editing is locked.');
+
+        $data = $request->validate([
+            'remark' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $logs = $clientRequest->admin_technician_remarks ?? [];
+        $now = now('Asia/Kuala_Lumpur');
+        $logs[] = [
+            'sender_type' => 'technician',
+            'sender_name' => (string) ($request->user()?->name ?? 'Technician'),
+            'remark' => trim($data['remark']),
+            'created_at' => $now->toDateTimeString(),
+            'created_at_label' => $now->format('d M Y h:i A'),
+        ];
+
+        $clientRequest->update([
+            'admin_technician_remarks' => array_values($logs),
+        ]);
+
+        return back()->with('success', 'Remark added to shared communication log.');
+    }
+
     public function submitCosting(Request $request, ClientRequest $clientRequest)
     {
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
@@ -146,6 +174,7 @@ class TechnicianRequestController extends Controller
     {
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
 
+        $vendorIds = Vendor::orderBy('company_name')->pluck('id')->all();
         $entries = [];
         for ($i = 1; $i <= 3; $i++) {
             $existing = collect($clientRequest->quotation_entries ?? [])->firstWhere('slot', $i) ?? [];
@@ -153,7 +182,10 @@ class TechnicianRequestController extends Controller
 
             $request->validate([
                 "quotation_{$i}_file" => [$fileRule, 'file', 'max:10240'],
+                "quotation_{$i}_vendor_id" => ['nullable', 'integer', \Illuminate\Validation\Rule::in($vendorIds)],
                 "quotation_{$i}_company_name" => ['nullable', 'string', 'max:255'],
+                "quotation_{$i}_manual_company_name" => ['nullable', 'string', 'max:255'],
+                "quotation_{$i}_subject_to_approval" => ['nullable', 'boolean'],
                 "quotation_{$i}_amount" => ['nullable', 'numeric', 'min:0'],
                 "quotation_{$i}_summary_report" => ['nullable', 'string'],
                 "quotation_{$i}_summary_files" => ['nullable', 'array'],
@@ -164,6 +196,9 @@ class TechnicianRequestController extends Controller
             if ($amount !== null && $amount !== '' && (float) $amount > 5000) {
                 $request->validate(["quotation_{$i}_summary_report" => ['required', 'string']]);
             }
+
+            $vendor = $request->filled("quotation_{$i}_vendor_id") ? Vendor::find($request->integer("quotation_{$i}_vendor_id")) : null;
+            $subjectToApproval = $request->boolean("quotation_{$i}_subject_to_approval");
 
             $fileMeta = $existing['file'] ?? null;
             if ($request->hasFile("quotation_{$i}_file")) {
@@ -184,14 +219,33 @@ class TechnicianRequestController extends Controller
                 ];
             }
 
-            if ($fileMeta || $request->filled("quotation_{$i}_company_name") || $request->filled("quotation_{$i}_amount")) {
+            $companyName = $subjectToApproval
+                ? trim((string) $request->input("quotation_{$i}_manual_company_name"))
+                : ($vendor?->company_name ?: $request->input("quotation_{$i}_company_name"));
+
+            if ($fileMeta || $companyName || $request->filled("quotation_{$i}_amount")) {
                 $entries[] = [
                     'slot' => $i,
                     'file' => $fileMeta,
-                    'company_name' => $request->input("quotation_{$i}_company_name"),
+                    'vendor_id' => $vendor?->id,
+                    'company_name' => $companyName,
+                    'subject_to_approval' => $subjectToApproval,
                     'amount' => $request->input("quotation_{$i}_amount"),
                     'summary_report' => $request->input("quotation_{$i}_summary_report"),
                     'summary_files' => $summaryFiles,
+                    'vendor_snapshot' => $vendor ? [
+                        'company_name' => $vendor->company_name,
+                        'ssm_number' => $vendor->ssm_number,
+                        'office_address' => $vendor->office_address,
+                        'phone_number' => $vendor->phone_number,
+                        'fax_number' => $vendor->fax_number,
+                        'official_email' => $vendor->official_email,
+                        'contact_person' => $vendor->contact_person,
+                        'bank' => $vendor->bank,
+                        'account_number_for_payment' => $vendor->account_number_for_payment,
+                        'document_path' => $vendor->document_path,
+                        'document_original_name' => $vendor->document_original_name,
+                    ] : ($existing['vendor_snapshot'] ?? null),
                 ];
             }
         }
@@ -272,6 +326,8 @@ class TechnicianRequestController extends Controller
             'attachments.*' => ['file', 'max:10240'],
             'person_in_charge' => ['nullable', 'string'],
             'verify_by' => ['nullable', 'string'],
+            'verify_by_signed_at' => ['nullable', 'string'],
+            'ended_at' => ['nullable', 'string'],
         ]);
 
         if ($data['timer_action'] === 'start') {
@@ -295,10 +351,12 @@ class TechnicianRequestController extends Controller
             'attachments.*' => ['file', 'max:10240'],
             'person_in_charge' => ['required', 'string'],
             'verify_by' => ['required', 'string'],
+            'verify_by_signed_at' => ['nullable', 'string'],
+            'ended_at' => ['nullable', 'string'],
         ]);
 
         $startedAt = $this->resolveMalaysiaStartTime($clientRequest);
-        $endedAt = now('Asia/Kuala_Lumpur');
+        $endedAt = $this->resolveMalaysiaEndTime($data['ended_at'] ?? null);
         $durationSeconds = max(0, $startedAt->diffInSeconds($endedAt, false));
 
         $attachments = [];
@@ -329,6 +387,9 @@ class TechnicianRequestController extends Controller
             'person_in_charge' => $data['person_in_charge'],
             'verify_by' => $data['verify_by'],
             'recorded_at' => $endedAt->format('Y-m-d H:i:s'),
+            'recorded_at_label' => $endedAt->format('d M Y h:i A'),
+            'verify_by_signed_at' => $data['verify_by_signed_at'] ?? $endedAt->format('Y-m-d H:i:s'),
+            'verify_by_signed_at_label' => $this->formatSignatureMoment($data['verify_by_signed_at'] ?? $endedAt->format('Y-m-d H:i:s')),
         ];
 
         $clientRequest->update([
@@ -341,6 +402,50 @@ class TechnicianRequestController extends Controller
         return back()->with('success', 'Technician log saved successfully.');
     }
 
+    protected function resolveMalaysiaEndTime(?string $value): Carbon
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return now('Asia/Kuala_Lumpur');
+        }
+
+        foreach (['Y-m-d\TH:i:sP', 'Y-m-d\TH:i:s', 'Y-m-d H:i:s', 'd M Y H:i:s', 'd M Y h:i A', 'd M Y h:i:s A'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value, 'Asia/Kuala_Lumpur');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        try {
+            return Carbon::parse($value, 'Asia/Kuala_Lumpur');
+        } catch (\Throwable $e) {
+            return now('Asia/Kuala_Lumpur');
+        }
+    }
+
+
+
+
+    protected function formatSignatureMoment(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['Y-m-d\TH:i:sP', 'Y-m-d H:i:s', 'd M Y H:i:s', 'd M Y h:i A', 'd M Y h:i:s A'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value, 'Asia/Kuala_Lumpur')->format('d M Y h:i A');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        try {
+            return Carbon::parse($value, 'Asia/Kuala_Lumpur')->format('d M Y h:i A');
+        } catch (\Throwable $e) {
+            return $value;
+        }
+    }
 
     protected function resolveMalaysiaStartTime(ClientRequest $clientRequest): Carbon
     {
@@ -490,6 +595,17 @@ class TechnicianRequestController extends Controller
             'duration_of_work' => $clientRequest->formattedDuration($clientRequest->totalInspectionDurationSeconds()),
             'time_history' => array_values($clientRequest->inspection_sessions ?? []),
             'description_of_work' => $clientRequest->compiledDailyLogDescription(),
+            'description_entries' => collect($clientRequest->inspection_sessions ?? [])->map(function ($session) use ($clientRequest) {
+                $session = (array) $session;
+                return [
+                    'date_label' => $session['date_label'] ?? null,
+                    'time_range' => trim((($session['time_start'] ?? '-') . ' - ' . ($session['time_end'] ?? '-'))),
+                    'duration_label' => $session['duration_label'] ?? $clientRequest->formattedDuration($clientRequest->inspectionSessionDurationSeconds($session)),
+                    'remark' => $session['remark'] ?? '-',
+                    'verify_by_signed_at_label' => $session['verify_by_signed_at_label'] ?? null,
+                    'verify_by_signature' => $session['verify_by'] ?? null,
+                ];
+            })->values()->all(),
             'suggestion_recommendation' => $data['suggestion_recommendation'] ?? null,
             'attachments' => $attachments,
             'daily_log_attachments' => $dailyLogAttachments,

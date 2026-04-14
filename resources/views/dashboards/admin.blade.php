@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => 'Admin Dashboard'])
 @section('content')
-<div class="page-header"><div><h1>Admin Dashboard</h1><p>{{ $admin->roleLabel() }} is signed in.</p></div></div>
+<div class="page-header"><div><h1>{{ $dashboardTitle ?? 'Admin Dashboard' }}</h1><p>{{ $dashboardIntro ?? ($admin->roleLabel() . ' is signed in.') }}</p></div></div>
 <div class="stats-grid four-up">
     <div class="stat-card"><span>Total Task</span><strong>{{ $totalTask }}</strong></div>
     <div class="stat-card"><span>Pending</span><strong>{{ $pendingCount }}</strong></div>
@@ -8,7 +8,7 @@
     <div class="stat-card"><span>Complete (%)</span><strong>{{ $completionPercent }}%</strong></div>
 </div>
 <section class="panel" style="margin-top:20px;">
-    <div class="panel-head"><h3>Latest Incoming Requests</h3><a class="btn small accent" href="{{ route('admin.incoming-requests.index') }}">Open Request Inbox</a></div>
+    <div class="panel-head"><h3>Latest Incoming Requests</h3>@if(empty($mapsScope))<a class="btn small accent" href="{{ route('admin.incoming-requests.index') }}">Open Request Inbox</a>@else<a class="btn small accent" href="{{ route('admin.maps.finance.index') }}">Open Finance MAPS</a>@endif</div>
     <table class="table hierarchy-table">
         <thead><tr><th>Job ID</th><th>Client</th><th>Type</th><th>Urgency</th><th>Status</th><th>Technician</th><th>Location</th><th>Department</th><th>Action</th></tr></thead>
         <tbody>
@@ -30,7 +30,7 @@
                     <td>{{ $item->assignedTechnician?->name ?? '-' }}</td>
                     <td>{{ $item->location?->name ?? '-' }}</td>
                     <td>{{ $item->department?->name ?? '-' }}</td>
-                    <td><a href="{{ route('admin.incoming-requests.show', $item) }}">View</a></td>
+                    <td>@if(!empty($mapsScope))@if($item->hasFinancePending() || $item->finance_completed_at)<a href="{{ route('admin.maps.finance.show', $item) }}">Open Finance</a>@else<span class="helper-text">Monitoring</span>@endif @else <a href="{{ route('admin.incoming-requests.show', $item) }}">View</a> @endif</td>
                 </tr>
             @empty
                 <tr><td colspan="9">No requests submitted yet.</td></tr>
@@ -40,7 +40,7 @@
 </section>
 
 <section class="panel" style="margin-top:20px;">
-    <div class="panel-head"><h3>Finance Evidence Alerts</h3><a class="btn small ghost" href="{{ route('admin.finance.index') }}">Open Finance</a></div>
+    <div class="panel-head"><h3>Finance Evidence Alerts</h3><a class="btn small ghost" href="{{ !empty($mapsScope) ? route('admin.maps.finance.index') : route('admin.finance.index') }}">Open Finance</a></div>
     <table class="table">
         <thead><tr><th>Job ID</th><th>Client</th><th>Technician</th><th>Evidence Status</th><th>Action</th></tr></thead>
         <tbody>
@@ -53,12 +53,12 @@
                     <td>
                         @if(auth()->user()->isViewer())
                             @if($item->finance_completed_at)
-                                <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">View Finance Form</a>
+                                <a class="btn small accent" href="{{ !empty($mapsScope) ? route('admin.maps.finance.show', $item) : route('admin.finance.show', $item) }}">View Finance Form</a>
                             @else
                                 <span class="helper-text">Not uploaded yet</span>
                             @endif
                         @else
-                            <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">Open Finance Form</a>
+                            <a class="btn small accent" href="{{ !empty($mapsScope) ? route('admin.maps.finance.show', $item) : route('admin.finance.show', $item) }}">Open Finance Form</a>
                         @endif
                     </td>
                 </tr>

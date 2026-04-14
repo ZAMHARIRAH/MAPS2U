@@ -21,7 +21,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('request_type_id')->constrained()->cascadeOnDelete();
             $table->text('question_text');
-            $table->enum('question_type', ['remark', 'radio', 'date_range', 'checkbox']);
+            $table->enum('question_type', ['remark', 'radio', 'date_range', 'checkbox', 'task_title']);
             $table->unsignedInteger('sort_order')->default(1);
             $table->boolean('is_required')->default(true);
             $table->string('start_label')->nullable();

@@ -8,6 +8,7 @@
         <div class="badge-row compact">
             <span class="badge neutral">HQ Staff</span>
             <span class="badge neutral">Kindergarten</span>
+            <span class="badge neutral">SSU</span>
         </div>
     </section>
 
@@ -25,7 +26,7 @@
                 <input type="password" name="password" required>
                 <button class="btn primary block" type="submit">Login</button>
                 <p class="helper-text center-text" style="margin-top:14px;">Doesn't have an account? <a href="{{ route('client.register') }}" class="inline-link" id="open-register-panel">Register here</a></p>
-            </form>
+            <p class="helper-text center-text" style="margin-top:14px;"><a href="{{ route('password.forgot') }}" class="inline-link">Forgot Password?</a></p></form>
         </div>
 
         <div class="auth-card premium-auth-card hidden-form-block" id="client-register-panel">

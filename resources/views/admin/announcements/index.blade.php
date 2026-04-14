@@ -3,7 +3,7 @@
 <div class="page-header">
     <div>
         <h1>Announcements</h1>
-        <p> </p>
+        <p>Create and manage announcements shown on the homepage and client dashboard.</p>
     </div>
     <a class="btn primary" href="{{ route('admin.announcements.create') }}">Add Announcement</a>
 </div>

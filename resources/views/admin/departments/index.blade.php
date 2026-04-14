@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => 'Departments'])
 @section('content')
-<div class="page-header"><div><h1>Departments</h1><p> </p></div><a class="btn primary" href="{{ route('admin.departments.create') }}">Add Department</a></div>
+<div class="page-header"><div><h1>Departments</h1><p>Create and manage department list for HQ Staff request form.</p></div><a class="btn primary" href="{{ route('admin.departments.create') }}">Add Department</a></div>
 <section class="panel">
     <table class="table">
         <thead><tr><th>Name</th><th>Status</th><th>Action</th></tr></thead>

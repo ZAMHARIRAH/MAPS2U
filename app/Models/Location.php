@@ -12,7 +12,7 @@ class Location extends Model
     public const TYPE_HQ = 'hq';
     public const TYPE_BRANCH = 'branch';
 
-    protected $fillable = ['name', 'type', 'address', 'is_active'];
+    protected $fillable = ['name', 'type', 'address', 'state', 'is_active'];
 
     protected function casts(): array
     {
@@ -22,5 +22,10 @@ class Location extends Model
     public function typeLabel(): string
     {
         return $this->type === self::TYPE_HQ ? 'HQ Location' : 'Branch';
+    }
+
+    public static function stateOptions(): array
+    {
+        return User::stateOptions();
     }
 }

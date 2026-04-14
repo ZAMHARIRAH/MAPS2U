@@ -93,6 +93,7 @@
         <form id="technician-log-form" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="timer_action" value="stop">
+            <input type="hidden" name="ended_at" id="modal-ended-at">
             <div class="summary-stack">
                 <div class="summary-card compact-summary"><strong>Job ID</strong><span id="log-job-code">-</span></div>
                 <div class="summary-card compact-summary"><strong>Name of Technician</strong><span id="log-technician-name">-</span></div>
@@ -122,6 +123,8 @@
                     <label>Verify By</label>
                     <canvas class="signature-pad" data-target="modal-verify-by"></canvas>
                     <input type="hidden" name="verify_by" id="modal-verify-by" required>
+                    <input type="hidden" name="verify_by_signed_at" id="modal-verify-by-signed-at">
+                    <div class="helper-text" id="verify-auto-submit-helper" style="margin-top:6px;"></div>
                     <button class="btn tiny ghost signature-clear" type="button">Clear</button>
                 </div>
             </div>
@@ -135,7 +138,13 @@
 <script>
 const technicianLogModal = document.getElementById('technician-log-modal');
 const technicianLogForm = document.getElementById('technician-log-form');
+const verifySignedAtInput = document.getElementById('modal-verify-by-signed-at');
+const verifyAutoSubmitHelper = document.getElementById('verify-auto-submit-helper');
+const endedAtInput = document.getElementById('modal-ended-at');
+let autoSubmitTimeout = null;
 function pad(value){ return String(value).padStart(2,'0'); }
+function nowIsoLocal(){ const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function nowLabel(){ return new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true }); }
 function formatDuration(startDate, endDate){
   let diff = Math.max(0, Math.floor((endDate - startDate) / 1000));
   const days = Math.floor(diff / 86400); diff %= 86400;
@@ -166,12 +175,25 @@ function clearLogPad(canvas) {
   ctx.lineJoin = 'round';
   ctx.strokeStyle = '#0f172a';
 }
+function scheduleVerifyAutoSubmit() {
+  if (!verifySignedAtInput || !verifySignedAtInput.value) return;
+  clearTimeout(autoSubmitTimeout);
+  if (verifyAutoSubmitHelper) verifyAutoSubmitHelper.textContent = `Signature detected at ${nowLabel()}. Form will auto submit in 2 minutes if you forget.`;
+  autoSubmitTimeout = setTimeout(() => {
+    if (technicianLogForm.dataset.submitted === '1') return;
+    if (!verifySignedAtInput.value) return;
+    technicianLogForm.dataset.submitted = '1';
+    technicianLogForm.requestSubmit();
+  }, 120000);
+}
 function bindSignaturePad(canvas) {
   if (!canvas || canvas.dataset.bound === '1') return;
   canvas.dataset.bound = '1';
   const target = document.getElementById(canvas.dataset.target);
+  const isVerifyPad = target && target.id === 'modal-verify-by';
   const ctx = canvas.getContext('2d');
   let drawing = false;
+  let hasStroke = false;
   const resize = () => clearLogPad(canvas);
   const point = (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -191,6 +213,13 @@ function bindSignaturePad(canvas) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     if (target) target.value = canvas.toDataURL('image/png');
+    if (isVerifyPad && !hasStroke) {
+      hasStroke = true;
+      if (verifySignedAtInput && !verifySignedAtInput.value) {
+        verifySignedAtInput.value = nowIsoLocal();
+        scheduleVerifyAutoSubmit();
+      }
+    }
     e.preventDefault();
   };
   const stop = (e) => {
@@ -216,6 +245,12 @@ function bindSignaturePad(canvas) {
   }
   window.addEventListener('resize', resize);
   canvas.parentElement.querySelector('.signature-clear')?.addEventListener('click', () => {
+    if (isVerifyPad) {
+      hasStroke = false;
+      if (verifySignedAtInput) verifySignedAtInput.value = '';
+      if (verifyAutoSubmitHelper) verifyAutoSubmitHelper.textContent = '';
+      clearTimeout(autoSubmitTimeout);
+    }
     clearLogPad(canvas);
     if (target) target.value = '';
   });
@@ -223,13 +258,14 @@ function bindSignaturePad(canvas) {
 function openLogModal(jobId, jobCode, technicianName, startDate, startTime){
   const start = new Date(`${startDate}T${startTime}:00`);
   const end = new Date();
-  technicianLogForm.reset();
+  const endedAtValue = nowIsoLocal();
+  technicianLogForm.reset(); technicianLogForm.dataset.submitted = ''; if (verifySignedAtInput) verifySignedAtInput.value=''; if (verifyAutoSubmitHelper) verifyAutoSubmitHelper.textContent=''; if (endedAtInput) endedAtInput.value = endedAtValue; clearTimeout(autoSubmitTimeout);
   technicianLogForm.action = `/technician/job-requests/${jobId}/inspection-timer`;
   document.getElementById('log-job-code').textContent = jobCode;
   document.getElementById('log-technician-name').textContent = technicianName;
   document.getElementById('log-date').textContent = end.toLocaleDateString('en-GB');
   document.getElementById('log-start').textContent = startTime;
-  document.getElementById('log-end').textContent = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  document.getElementById('log-end').textContent = `${pad(end.getHours())}:${pad(end.getMinutes())}:${pad(end.getSeconds())}`;
   document.getElementById('log-duration').textContent = formatDuration(start, end);
   technicianLogModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -242,7 +278,8 @@ function openLogModal(jobId, jobCode, technicianName, startDate, startTime){
     });
   });
 }
-function closeLogModal(){ technicianLogModal.style.display = 'none'; document.body.style.overflow = ''; }
+function closeLogModal(){ clearTimeout(autoSubmitTimeout); technicianLogModal.style.display = 'none'; document.body.style.overflow = ''; }
+technicianLogForm?.addEventListener('submit', () => { technicianLogForm.dataset.submitted = '1'; clearTimeout(autoSubmitTimeout); });
 document.querySelectorAll('.signature-pad').forEach(bindSignaturePad);
 </script>
 @endsection

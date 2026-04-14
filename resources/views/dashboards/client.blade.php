@@ -5,7 +5,7 @@
         <div>
             <span class="hero-kicker">Client Command Center</span>
             <h1>Client Dashboard</h1>
-            <p>Welcome back, {{ $user->name }}.</p>
+            <p>Welcome back, {{ $user->name }}. Track every request, know which jobs need your attention, and jump straight into resubmission or feedback when needed.</p>
             <div class="hero-badge-row">
                 <span class="badge accented">{{ $user->roleLabel() }}</span>
                 <span class="badge neutral">Active Request Types: {{ $requestTypeCount }}</span>
@@ -102,7 +102,7 @@
     <div class="premium-section-head">
         <div>
             <h3>My Request Details</h3>
-            <p> </p>
+            <p>Latest job activity, technician assignment, urgency level, and scheduled date in one place.</p>
         </div>
         <div class="table-head-badges">
             <span class="header-chip">Live Job Tracking</span>
@@ -178,11 +178,33 @@
                                 <div class="client-action-stack">
                                     <a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a>
                                     <a class="btn small primary" href="{{ route('client.requests.show', $request) }}#feedback-form">Open Review</a>
-                                    <form method="POST" action="{{ route('client.requests.feedback', $request) }}" style="display:inline;">
-                                        @csrf
-                                        @method('PUT')
-                                        <button class="btn small soft-success" type="submit" name="agree_all" value="1">Agree All</button>
-                                    </form>
+                                    <button class="btn small soft-success" type="button" data-agree-all-open="agree-all-modal-{{ $request->id }}">Agree All</button>
+
+                                    <div id="agree-all-modal-{{ $request->id }}" data-agree-all-modal style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:80;padding:20px;overflow:auto;">
+                                        <div class="panel shaded-panel" style="max-width:720px;margin:40px auto;background:#fff;">
+                                            <div class="panel-head"><h3>Agree All Terms & Conditions</h3></div>
+                                            <p class="helper-text" style="margin-bottom:12px;">Every feedback question will follow the same score that you select below. Please confirm the scale carefully before submitting.</p>
+                                            <form method="POST" action="{{ route('client.requests.feedback', $request) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <input type="hidden" name="agree_all" value="1">
+                                                <div class="feedback-question-card" style="margin-bottom:12px;">
+                                                    <p>Select one scale for all feedback questions:</p>
+                                                    <div class="rating-grid premium-rating-grid">
+                                                        @foreach([1 => '1', 2 => '2', 3 => '3', 4 => '4', 5 => '5'] as $score => $label)
+                                                            <label class="rate-pill premium-rate-pill"><input type="radio" name="agree_all_scale" value="{{ $score }}" required><span>{{ $label }}</span></label>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                                <div class="feedback-comment-card"><label>Additional Comments / Suggestions</label><textarea name="additional_comments"></textarea></div>
+                                                <label class="remember-line" style="margin:10px 0 16px;display:flex;align-items:flex-start;gap:8px;"><input type="checkbox" name="agree_all_confirmed" value="1" required style="margin-top:4px;"><span>I agree that all feedback answers will be submitted based on the selected scale above.</span></label>
+                                                <div class="action-row" style="justify-content:flex-end;gap:12px;">
+                                                    <button class="btn ghost" type="button" data-agree-all-close="agree-all-modal-{{ $request->id }}">Cancel</button>
+                                                    <button class="btn accent" type="submit">Submit</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             @elseif(data_get($request->inspect_data, 'add_related_job') && !$request->childRequests()->where('user_id', $user->id)->exists())
                                 <div class="client-action-stack"><a class="btn small ghost" href="{{ route('client.requests.show', $request) }}">View</a><a class="btn small ghost" href="{{ route('client.requests.index', ['tab' => 'related', 'related_source' => $request->id, 'form' => 1]) }}">Fill Related Job</a></div>
@@ -207,4 +229,34 @@
         </table>
     </div>
 </section>
+
+<script>
+(() => {
+    const openModal = (id) => {
+        const modal = document.getElementById(id);
+        if (modal) modal.style.display = 'block';
+    };
+
+    const closeModal = (id) => {
+        const modal = document.getElementById(id);
+        if (modal) modal.style.display = 'none';
+    };
+
+    document.querySelectorAll('[data-agree-all-open]').forEach((button) => {
+        button.addEventListener('click', () => openModal(button.dataset.agreeAllOpen));
+    });
+
+    document.querySelectorAll('[data-agree-all-close]').forEach((button) => {
+        button.addEventListener('click', () => closeModal(button.dataset.agreeAllClose));
+    });
+
+    document.querySelectorAll('[data-agree-all-modal]').forEach((modal) => {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+})();
+</script>
 @endsection

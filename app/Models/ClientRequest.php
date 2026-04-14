@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Models\TaskTitle;
 
 class ClientRequest extends Model
 {
@@ -61,6 +62,16 @@ class ClientRequest extends Model
         'status',
         'admin_approval_status',
         'admin_approval_remark',
+        'admin_approved_remark',
+        'subject_to_approval_remark',
+        'subject_to_approval_requested_at',
+        'subject_to_approval_checked_at',
+        'admin_technician_remarks',
+        'viewer_summary_remark',
+        'viewer_summary_signature',
+        'viewer_summary_updated_by_name',
+        'viewer_summary_updated_at',
+        'viewer_summary_history',
         'admin_approved_at',
         'assigned_at',
         'quotation_return_remark',
@@ -91,7 +102,12 @@ class ClientRequest extends Model
         'finance_form' => 'array',
         'finance_completed_at' => 'datetime',
         'admin_approved_at' => 'datetime',
+        'subject_to_approval_requested_at' => 'datetime',
+        'subject_to_approval_checked_at' => 'datetime',
+        'admin_technician_remarks' => 'array',
+        'viewer_summary_history' => 'array',
         'assigned_at' => 'datetime',
+        'viewer_summary_updated_at' => 'datetime',
         'feedback' => 'array',
         'customer_review_submitted_at' => 'datetime',
         'technician_log_started_at' => 'datetime',
@@ -113,6 +129,7 @@ class ClientRequest extends Model
     {
         return [
             self::STATUS_UNDER_REVIEW,
+            'Subject To Approval',
             self::STATUS_RETURNED,
             self::STATUS_PENDING_APPROVAL,
             self::STATUS_APPROVED,
@@ -152,6 +169,7 @@ class ClientRequest extends Model
     {
         return match ($this->status) {
             self::STATUS_APPROVED => 'success',
+            'Subject To Approval' => 'warning',
             self::STATUS_PENDING_APPROVAL, self::STATUS_PENDING_CUSTOMER_REVIEW => 'warning',
             self::STATUS_RETURNED => 'danger',
             self::STATUS_WORK_IN_PROGRESS => 'accent',
@@ -174,6 +192,33 @@ class ClientRequest extends Model
         }
 
         return collect($this->quotation_entries ?? [])->firstWhere('slot', $this->approved_quotation_index);
+    }
+
+
+    public function selectedTaskTitleNames(): array
+    {
+        $questions = $this->requestType?->questions ?? collect();
+        $taskQuestions = collect($questions)->filter(fn ($question) => $question->question_type === RequestQuestion::TYPE_TASK_TITLE);
+
+        return $taskQuestions->map(function ($question) {
+            $answer = data_get($this->answers, $question->id);
+            $label = trim((string) data_get($answer, 'label', ''));
+            if ($label !== '') {
+                return $label;
+            }
+
+            $value = data_get($answer, 'value');
+            if (is_numeric($value)) {
+                return TaskTitle::find((int) $value)?->title;
+            }
+
+            return trim((string) ($value ?? ''));
+        })->filter()->values()->all();
+    }
+
+    public function primaryTaskTitleName(): ?string
+    {
+        return $this->selectedTaskTitleNames()[0] ?? null;
     }
 
     public function feedbackAverage(): ?float
@@ -326,6 +371,7 @@ class ClientRequest extends Model
         return match ($this->admin_approval_status) {
             'approved' => 'success',
             'rejected' => 'danger',
+            'subject_to_approval' => 'warning',
             default => 'warning',
         };
     }
@@ -335,8 +381,83 @@ class ClientRequest extends Model
         return match ($this->admin_approval_status) {
             'approved' => 'Approved',
             'rejected' => 'Rejected',
+            'subject_to_approval' => 'Subject To Approval',
             default => 'Pending Admin Approval',
         };
+    }
+
+    public function subjectToApprovalTicked(): bool
+    {
+        return (bool) $this->subject_to_approval_checked_at;
+    }
+
+    public function subjectToApprovalPending(): bool
+    {
+        return $this->admin_approval_status === 'subject_to_approval' && !$this->subjectToApprovalTicked();
+    }
+
+    public function approvalPrintableRemarks(): array
+    {
+        $items = [];
+
+        if ($this->admin_approved_remark) {
+            $items[] = ['label' => 'Approved Remark', 'value' => $this->admin_approved_remark];
+        }
+
+        if ($this->admin_approval_remark) {
+            $items[] = ['label' => 'Rejected Remark', 'value' => $this->admin_approval_remark];
+        }
+
+        if ($this->subject_to_approval_remark) {
+            $items[] = ['label' => 'Subject To Approval Remark', 'value' => $this->subject_to_approval_remark];
+        }
+
+        return $items;
+    }
+
+    public function adminTechnicianRemarkLines(): array
+    {
+        return collect($this->admin_technician_remarks ?? [])->map(function ($item) {
+            $sender = ucfirst((string) data_get($item, 'sender_type', 'Admin'));
+            $name = trim((string) data_get($item, 'sender_name', ''));
+            $when = (string) data_get($item, 'created_at_label', data_get($item, 'created_at', ''));
+            $remark = trim((string) data_get($item, 'remark', ''));
+
+            $head = $name !== '' ? "{$sender} - {$name}" : $sender;
+            if ($when !== '') {
+                $head .= " ({$when})";
+            }
+
+            return ['header' => $head, 'remark' => $remark];
+        })->filter(fn ($item) => $item['remark'] !== '')->values()->all();
+    }
+
+
+    public function viewerSummaryCurrent(): array
+    {
+        return [
+            'remark' => trim((string) ($this->viewer_summary_remark ?? '')),
+            'signature' => $this->viewer_summary_signature,
+            'updated_by_name' => $this->viewer_summary_updated_by_name,
+            'updated_at' => $this->viewer_summary_updated_at,
+            'updated_at_label' => $this->viewer_summary_updated_at?->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A'),
+        ];
+    }
+
+    public function viewerSummaryHistoryLines(): array
+    {
+        return collect($this->viewer_summary_history ?? [])->map(function ($item) {
+            $remark = trim((string) data_get($item, 'remark', ''));
+            if ($remark === '') {
+                return null;
+            }
+
+            return [
+                'header' => trim((string) data_get($item, 'updated_by_name', 'Viewer')) . ' (' . trim((string) data_get($item, 'updated_at_label', data_get($item, 'updated_at', '-'))) . ')',
+                'remark' => $remark,
+                'signature' => data_get($item, 'signature'),
+            ];
+        })->filter()->values()->all();
     }
 
     public function technicianProductivitySeconds(): ?int
@@ -399,6 +520,36 @@ class ClientRequest extends Model
         return null;
     }
 
+
+    public function reportDurationSeconds(): int
+    {
+        $reportSeconds = data_get($this->customer_service_report, 'duration_seconds');
+        if (is_numeric($reportSeconds) && (int) $reportSeconds > 0) {
+            return (int) $reportSeconds;
+        }
+
+        $inspectionSeconds = $this->totalInspectionDurationSeconds();
+        if ($inspectionSeconds > 0) {
+            return $inspectionSeconds;
+        }
+
+        $started = $this->technicianLogStartedAt();
+        if (!$started || !$this->technician_completed_at) {
+            return 0;
+        }
+
+        try {
+            return max(0, $started->diffInSeconds($this->technician_completed_at->copy()->timezone('Asia/Kuala_Lumpur'), false));
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    public function reportDurationHours(): float
+    {
+        return round($this->reportDurationSeconds() / 3600, 2);
+    }
+
     public function totalInspectionDurationSeconds(): int
     {
         return (int) collect($this->inspection_sessions ?? [])->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
@@ -415,18 +566,21 @@ class ClientRequest extends Model
                 $durationSeconds = $this->inspectionSessionDurationSeconds($session);
                 $duration = $this->formattedDuration($durationSeconds);
                 $remark = trim((string) ($session['remark'] ?? '-'));
+                $verifySignedAt = trim((string) ($session['verify_by_signed_at_label'] ?? ''));
 
                 $parts = array_filter([
                     $date,
                     ($start || $end) ? trim(($start ?: '-') . ' - ' . ($end ?: '-')) : null,
                     $duration !== '-' ? $duration : null,
                     $remark !== '' ? $remark : '-',
+                    $verifySignedAt !== '' ? 'Verify signed: ' . $verifySignedAt : null,
                 ]);
 
                 return $parts ? '- ' . implode(' | ', $parts) : null;
             })
             ->filter()
-            ->implode("\n");
+            ->implode("
+");
     }
 
     public function formattedDuration(?int $seconds): string

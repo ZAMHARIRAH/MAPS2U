@@ -5,7 +5,7 @@
     <div class="page-header builder-header">
         <div>
             <h1>{{ $mode === 'create' ? 'Create' : 'Edit' }} Request Type</h1>
-            <p> </p>
+            <p>Build request questions in a cleaner step-by-step layout for MAPS2U admins.</p>
         </div>
         <a class="btn ghost" href="{{ route('admin.request-types.index') }}">Back</a>
     </div>
@@ -16,7 +16,23 @@
             @method('PUT')
         @endif
 
-    
+        <div class="builder-intro-grid">
+            <div class="builder-intro-card">
+                <span class="builder-step">Step 1</span>
+                <h3>Request Overview</h3>
+                <p>Set the request title and choose which client role can access this request type, including SSU.</p>
+            </div>
+            <div class="builder-intro-card">
+                <span class="builder-step">Step 2</span>
+                <h3>Extra Controls</h3>
+                <p>Turn on urgency or file upload requirements so the request form behaves the way you need.</p>
+            </div>
+            <div class="builder-intro-card">
+                <span class="builder-step">Step 3</span>
+                <h3>Questions Builder</h3>
+                <p>Add as many questions as needed. Use paragraph text for long instructions or detailed prompts.</p>
+            </div>
+        </div>
 
         <div class="builder-config-grid">
             <section class="builder-section builder-main-section">
@@ -37,7 +53,7 @@
                         <span>Open For</span>
                         <div class="builder-role-grid">
                             <label class="role-choice-card">
-                                <input type="radio" name="role_scope" value="hq_staff" {{ old('role_scope', $requestType->role_scope ?: 'both') === 'hq_staff' ? 'checked' : '' }}>
+                                <input type="radio" name="role_scope" value="hq_staff" {{ old('role_scope', $requestType->role_scope ?: 'all') === 'hq_staff' ? 'checked' : '' }}>
                                 <strong>HQ Staff</strong>
                                 <small>Visible only to HQ Staff client accounts.</small>
                             </label>
@@ -47,9 +63,14 @@
                                 <small>Visible only to kindergarten client accounts.</small>
                             </label>
                             <label class="role-choice-card">
-                                <input type="radio" name="role_scope" value="both" {{ old('role_scope', $requestType->role_scope ?: 'both') === 'both' ? 'checked' : '' }}>
-                                <strong>Both</strong>
-                                <small>Visible to all client roles.</small>
+                                <input type="radio" name="role_scope" value="ssu" {{ old('role_scope', $requestType->role_scope) === 'ssu' ? 'checked' : '' }}>
+                                <strong>SSU</strong>
+                                <small>Visible only to SSU accounts.</small>
+                            </label>
+                            <label class="role-choice-card">
+                                <input type="radio" name="role_scope" value="all" {{ old('role_scope', $requestType->role_scope ?: 'all') === 'all' ? 'checked' : '' }}>
+                                <strong>All</strong>
+                                <small>Visible to HQ Staff, Kindergarten, and SSU.</small>
                             </label>
                         </div>
                     </div>
@@ -97,7 +118,7 @@
                 <div>
                     <span class="builder-step">Question Builder</span>
                     <h3>Questions</h3>
-                    <p class="helper-text"> </p>
+                    <p class="helper-text">Create structured questions for the selected request type.</p>
                 </div>
                 <button class="btn secondary small" type="button" id="add-question-btn">Add Question</button>
             </div>
@@ -146,6 +167,7 @@
 
 <script>
 const existingQuestions = @json($existingQuestionsData ?? []);
+const activeTaskTitles = @json(($taskTitles ?? collect())->pluck('title')->values());
 
 const builder = document.getElementById('question-builder');
 const addBtn = document.getElementById('add-question-btn');
@@ -182,6 +204,13 @@ function renderExtras(card, type, index, question = {}) {
                 ${helper}
                 <div class="option-list">${options.map((item, idx) => optionHtml(index, idx, item, includeOthersToggle)).join('')}</div>
                 <button class="btn small ghost add-option-btn" type="button">Add Option</button>
+            </div>
+        `;
+    } else if (type === 'task_title') {
+        extra.innerHTML = `
+            <div class="question-extra-card">
+                <p class="helper-text">Client will see active task titles as radio buttons. This list comes from Manage Task.</p>
+                <div class="helper-text" style="margin-top:8px;">${activeTaskTitles.length ? activeTaskTitles.join(', ') : 'No active task title yet. Please create one in Manage Task first.'}</div>
             </div>
         `;
     } else if (type === 'date_range') {
@@ -225,6 +254,7 @@ function createQuestionCard(index, question = {}) {
                     <option value="radio">Radio Button</option>
                     <option value="date_range">Date Range</option>
                     <option value="checkbox">Checkbox</option>
+                    <option value="task_title">Task Title</option>
                 </select>
             </div>
 

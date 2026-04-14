@@ -1,6 +1,7 @@
 @extends('layouts.app', ['title' => 'Request Detail'])
 @section('content')
 @php
+    $printMode = request()->boolean('print');
     $fileUrl = function ($path) {
         return $path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null;
     };
@@ -21,8 +22,9 @@
         return $session;
     })->values();
 @endphp
-<style>.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.24);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.compact-log-card .meta-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.compact-log-card .meta-row strong{display:block;font-size:15px}.compact-log-card .meta-row span{font-size:12px;color:#64748b}</style>
+<style>@media print{.no-print,.footer-bar,.topbar,.sidebar{display:none !important}.content-shell{padding:0 !important}.panel{box-shadow:none !important;border:none !important}body{background:#fff !important}}.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.24);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.compact-log-card .meta-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.compact-log-card .meta-row strong{display:block;font-size:15px}.compact-log-card .meta-row span{font-size:12px;color:#64748b}</style>
 
+<div class="page-header no-print" style="margin-bottom:16px;"><div><h1 style="margin:0;">Request Detail</h1><p class="helper-text" style="margin:6px 0 0;">Clean view with request form, inspection, daily log, and CSR evidence.</p></div><div class="action-row"><a class="btn ghost" href="{{ route('client.requests.index') }}">Back</a><a class="btn ghost" href="{{ route('client.requests.show', ['clientRequest' => $requestItem, 'print' => 1]) }}" target="_blank">Print Full Report</a></div></div>
 <section class="panel request-hero-card">
     <div class="page-header request-hero-head">
         <div>
@@ -112,6 +114,8 @@
                         <span class="badge neutral">{{ $session['resolved_duration'] ?? '-' }}</span>
                     </div>
                     <p class="helper-text" style="margin:8px 0 0;">{{ $session['remark'] ?? '-' }}</p>
+                    @if(!empty($session['verify_by_signed_at_label']))<div class="helper-text" style="margin-top:8px;"><strong>Verify signed:</strong> {{ $session['verify_by_signed_at_label'] }}</div>@endif
+                    @if(!empty($session['verify_by']))<div class="signature-image-card" style="margin-top:10px;max-width:220px;"><img src="{{ $session['verify_by'] }}" alt="Daily log verify signature"></div>@endif
                     @php($sessionFiles = collect($session['attachments'] ?? [])->filter(fn ($file) => str_contains(strtolower($file['mime_type'] ?? ''), 'image') || str_contains(strtolower($file['mime_type'] ?? ''), 'pdf'))->values())
                     @if($sessionFiles->isNotEmpty())
                         <div class="preview-grid two-up" style="margin-top:12px;">
@@ -137,6 +141,9 @@
         <div class="summary-card compact-summary"><strong>Duration</strong><span>{{ data_get($report, 'duration_of_work') ?: '-' }}</span></div>
         <div class="summary-card compact-summary"><strong>Submitted At</strong><span>{{ data_get($report, 'submitted_at') ?: '-' }}</span></div>
         <div class="summary-card compact-summary span-2"><strong>Description of Work</strong><span>{!! nl2br(e(data_get($report, 'description_of_work'))) !!}</span></div>
+        @if(!empty(data_get($report, 'description_entries', [])))
+            <div class="summary-card compact-summary span-2"><strong>Description Remark Evidence</strong><div style="display:grid;gap:12px;margin-top:10px;">@foreach(data_get($report, 'description_entries', []) as $entry)<div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;display:grid;gap:8px;"><div><strong>{{ $entry['date_label'] ?? '-' }}</strong> • {{ $entry['time_range'] ?? '-' }} • {{ $entry['duration_label'] ?? '-' }}</div><div>{{ $entry['remark'] ?? '-' }}</div><div class="helper-text">Verify signed: {{ $entry['verify_by_signed_at_label'] ?? '-' }}</div>@if(!empty($entry['verify_by_signature']))<div class="signature-image-card" style="max-width:220px;"><img src="{{ $entry['verify_by_signature'] }}" alt="CSR verify signature"></div>@endif</div>@endforeach</div></div>
+        @endif
         <div class="summary-card compact-summary span-2"><strong>Suggestion / Recommendation</strong><span>{{ data_get($report, 'suggestion_recommendation') ?: '-' }}</span></div>
     </div>
     @if(!empty(data_get($report, 'attachments', [])))
@@ -181,8 +188,56 @@
             @endforeach
         </div>
         <div class="feedback-comment-card"><label>Additional Comments / Suggestions</label><textarea name="additional_comments"></textarea></div>
+        <div class="feedback-comment-card" style="border-style:dashed;">
+            <label>Agree All Shortcut</label>
+            <p class="helper-text" style="margin-bottom:10px;">Use this if you want all feedback answers to follow one selected scale only.</p>
+            <button class="btn ghost" type="button" id="open-agree-all-modal">Agree All</button>
+        </div>
         <div class="action-row feedback-submit-row" style="justify-content:flex-end;gap:12px;flex-wrap:wrap;"><button class="btn accent" type="submit">Submit Feedback</button></div>
     </form>
+
+    <div id="agree-all-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:80;padding:20px;overflow:auto;">
+        <div class="panel shaded-panel" style="max-width:720px;margin:40px auto;background:#fff;">
+            <div class="panel-head"><h3>Agree All Terms & Conditions</h3></div>
+            <p class="helper-text" style="margin-bottom:12px;">Every feedback question will follow the same score that you select below. Please confirm the scale carefully before submitting.</p>
+            <form method="POST" action="{{ route('client.requests.feedback', $requestItem) }}">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="agree_all" value="1">
+                <div class="feedback-question-card" style="margin-bottom:12px;">
+                    <p>Select one scale for all feedback questions:</p>
+                    <div class="rating-grid premium-rating-grid">
+                        @foreach([1 => '1', 2 => '2', 3 => '3', 4 => '4', 5 => '5'] as $score => $label)
+                            <label class="rate-pill premium-rate-pill"><input type="radio" name="agree_all_scale" value="{{ $score }}" required><span>{{ $label }}</span></label>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="feedback-comment-card"><label>Additional Comments / Suggestions</label><textarea name="additional_comments"></textarea></div>
+                <label class="remember-line" style="margin:10px 0 16px;display:flex;align-items:flex-start;gap:8px;"><input type="checkbox" name="agree_all_confirmed" value="1" required style="margin-top:4px;"><span>I agree that all feedback answers will be submitted based on the selected scale above.</span></label>
+                <div class="action-row" style="justify-content:flex-end;gap:12px;">
+                    <button class="btn ghost" type="button" id="close-agree-all-modal">Cancel</button>
+                    <button class="btn accent" type="submit">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (() => {
+            const openBtn = document.getElementById('open-agree-all-modal');
+            const closeBtn = document.getElementById('close-agree-all-modal');
+            const modal = document.getElementById('agree-all-modal');
+            if (!openBtn || !closeBtn || !modal) return;
+            openBtn.addEventListener('click', () => modal.style.display = 'block');
+            closeBtn.addEventListener('click', () => modal.style.display = 'none');
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) modal.style.display = 'none';
+            });
+        })();
+    </script>
 </section>
 @endif
 @endsection
+
+@if($printMode)
+<script>window.addEventListener('load',()=>window.print());</script>
+@endif

@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\RequestType;
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use App\Services\ClientCommunicationService;
 use App\Services\TechnicianCommunicationService;
@@ -173,6 +174,7 @@ class ClientRequestController extends Controller
         return view('admin.submissions.show', [
             'submission' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
             'technicians' => User::where('role', User::ROLE_TECHNICIAN)->select(['id', 'name'])->orderBy('name')->get(),
+            'vendors' => Vendor::orderBy('company_name')->get(),
         ]);
     }
 
@@ -181,8 +183,10 @@ class ClientRequestController extends Controller
         abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
 
         $request->validate([
-            'decision' => ['required', 'in:approved,rejected'],
+            'decision' => ['required', 'in:approved,rejected,subject_to_approval'],
             'admin_approval_remark' => ['nullable', 'string'],
+            'admin_approved_remark' => ['nullable', 'string'],
+            'subject_to_approval_remark' => ['nullable', 'string'],
         ]);
 
         if ($request->input('decision') === 'rejected') {
@@ -203,9 +207,37 @@ class ClientRequestController extends Controller
             return back()->with('success', 'Request rejected and client can now see the rejection remark.');
         }
 
+        if ($request->input('decision') === 'subject_to_approval') {
+            $request->validate([
+                'subject_to_approval_remark' => ['required', 'string'],
+            ]);
+
+            $clientRequest->update([
+                'admin_approval_status' => 'subject_to_approval',
+                'subject_to_approval_remark' => $request->string('subject_to_approval_remark')->toString(),
+                'subject_to_approval_requested_at' => now('Asia/Kuala_Lumpur'),
+                'subject_to_approval_checked_at' => null,
+                'admin_approval_remark' => null,
+                'admin_approved_remark' => null,
+                'admin_approved_at' => null,
+                'status' => ClientRequest::STATUS_UNDER_REVIEW,
+                'assigned_technician_id' => null,
+            ]);
+
+            return back()->with('success', 'Request marked as Subject To Approval. Assignment stays locked until the approval checkbox is ticked.');
+        }
+
+        $request->validate([
+            'admin_approved_remark' => ['required', 'string'],
+        ]);
+
         $clientRequest->update([
             'admin_approval_status' => 'approved',
             'admin_approval_remark' => null,
+            'admin_approved_remark' => $request->string('admin_approved_remark')->toString(),
+            'subject_to_approval_remark' => null,
+            'subject_to_approval_requested_at' => null,
+            'subject_to_approval_checked_at' => null,
             'admin_approved_at' => now('Asia/Kuala_Lumpur'),
             'status' => ClientRequest::STATUS_UNDER_REVIEW,
         ]);
@@ -213,6 +245,84 @@ class ClientRequestController extends Controller
         $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'admin_approved');
 
         return back()->with('success', 'Request approved. You can now assign a technician.');
+    }
+
+    public function toggleSubjectApproval(Request $request, ClientRequest $clientRequest)
+    {
+        abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
+
+        abort_unless($clientRequest->admin_approval_status === 'subject_to_approval', 422, 'This request is not in Subject To Approval stage.');
+
+        $data = $request->validate([
+            'approved' => ['required', 'boolean'],
+        ]);
+
+        $approved = (bool) $data['approved'];
+
+        $clientRequest->update([
+            'subject_to_approval_checked_at' => $approved ? now('Asia/Kuala_Lumpur') : null,
+            'admin_approval_status' => $approved ? 'approved' : 'subject_to_approval',
+            'status' => ClientRequest::STATUS_UNDER_REVIEW,
+            'admin_approved_at' => $approved ? now('Asia/Kuala_Lumpur') : null,
+            'assigned_technician_id' => $approved ? $clientRequest->assigned_technician_id : null,
+        ]);
+
+        return back()->with('success', $approved ? 'Final approval checkbox saved. Technician assignment is now enabled.' : 'Final approval checkbox unticked. Assignment is locked again.');
+    }
+
+    public function saveViewerSummary(Request $request, ClientRequest $clientRequest)
+    {
+        abort_unless($request->user()?->isViewer(), 403, 'Only viewer can update this summary.');
+
+        $data = $request->validate([
+            'viewer_summary_remark' => ['required', 'string', 'max:10000'],
+            'viewer_summary_signature' => ['required', 'string'],
+        ]);
+
+        $now = now('Asia/Kuala_Lumpur');
+        $history = $clientRequest->viewer_summary_history ?? [];
+        $history[] = [
+            'remark' => trim($data['viewer_summary_remark']),
+            'signature' => $data['viewer_summary_signature'],
+            'updated_by_name' => (string) ($request->user()?->name ?? 'Viewer'),
+            'updated_at' => $now->toDateTimeString(),
+            'updated_at_label' => $now->format('d M Y h:i A'),
+        ];
+
+        $clientRequest->update([
+            'viewer_summary_remark' => trim($data['viewer_summary_remark']),
+            'viewer_summary_signature' => $data['viewer_summary_signature'],
+            'viewer_summary_updated_by_name' => (string) ($request->user()?->name ?? 'Viewer'),
+            'viewer_summary_updated_at' => $now,
+            'viewer_summary_history' => array_values($history),
+        ]);
+
+        return back()->with('success', 'Viewer remark summary saved with history log.');
+    }
+
+    public function appendTechnicianReviewRemark(Request $request, ClientRequest $clientRequest)
+    {
+        abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
+
+        $data = $request->validate([
+            'remark' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $logs = $clientRequest->admin_technician_remarks ?? [];
+        $now = now('Asia/Kuala_Lumpur');
+        $logs[] = [
+            'sender_type' => 'admin',
+            'sender_name' => (string) ($request->user()?->name ?? 'Admin'),
+            'remark' => trim($data['remark']),
+            'created_at' => $now->toDateTimeString(),
+            'created_at_label' => $now->format('d M Y h:i A'),
+        ];
+
+        $clientRequest->update([
+            'admin_technician_remarks' => array_values($logs),
+        ]);
+
+        return back()->with('success', 'Admin remark added to technician review communication log.');
     }
 
     public function assign(Request $request, ClientRequest $clientRequest)
@@ -291,21 +401,77 @@ class ClientRequestController extends Controller
         $data = $request->validate([
             'approved_quotation_index' => ['required', 'integer', 'min:1', 'max:3'],
             'approval_signature' => ['required', 'string'],
+            'create_vendor' => ['nullable', 'boolean'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'ssm_number' => ['nullable', 'string', 'max:255'],
+            'office_address' => ['nullable', 'string'],
+            'phone_number' => ['nullable', 'string', 'max:255'],
+            'fax_number' => ['nullable', 'string', 'max:255'],
+            'official_email' => ['nullable', 'email', 'max:255'],
+            'contact_person' => ['nullable', 'string', 'max:255'],
+            'bank' => ['nullable', 'string', 'max:255'],
+            'account_number_for_payment' => ['nullable', 'string', 'max:255'],
+            'document' => ['nullable', 'file', 'max:15360'],
         ]);
 
+        $entries = collect($clientRequest->quotation_entries ?? []);
+        $selected = $entries->firstWhere('slot', (int) $data['approved_quotation_index']) ?? [];
+        $vendorSnapshot = $selected['vendor_snapshot'] ?? null;
+        $vendorId = $selected['vendor_id'] ?? null;
+
+        if (!empty($selected['subject_to_approval']) && empty($vendorId) && $request->boolean('create_vendor')) {
+            $payload = [
+                'company_name' => $data['company_name'] ?: ($selected['company_name'] ?? null),
+                'ssm_number' => $data['ssm_number'] ?? null,
+                'office_address' => $data['office_address'] ?? null,
+                'phone_number' => $data['phone_number'] ?? null,
+                'fax_number' => $data['fax_number'] ?? null,
+                'official_email' => $data['official_email'] ?? null,
+                'contact_person' => $data['contact_person'] ?? null,
+                'bank' => $data['bank'] ?? null,
+                'account_number_for_payment' => $data['account_number_for_payment'] ?? null,
+            ];
+            if (blank($payload['company_name'])) {
+                return back()->withErrors(['company_name' => 'Company name is required for subject to approval vendor registration.'])->withInput();
+            }
+            if ($request->hasFile('document')) {
+                $file = $request->file('document');
+                $payload['document_path'] = $file->store('vendor-documents', 'public');
+                $payload['document_original_name'] = $file->getClientOriginalName();
+            }
+            $vendor = Vendor::create($payload);
+            $vendorId = $vendor->id;
+            $vendorSnapshot = [
+                'company_name' => $vendor->company_name,
+                'ssm_number' => $vendor->ssm_number,
+                'office_address' => $vendor->office_address,
+                'phone_number' => $vendor->phone_number,
+                'fax_number' => $vendor->fax_number,
+                'official_email' => $vendor->official_email,
+                'contact_person' => $vendor->contact_person,
+                'bank' => $vendor->bank,
+                'account_number_for_payment' => $vendor->account_number_for_payment,
+                'document_path' => $vendor->document_path,
+                'document_original_name' => $vendor->document_original_name,
+            ];
+        }
+
         try {
-            $entries = collect($clientRequest->quotation_entries ?? [])->map(function ($entry, $index) use ($data) {
+            $entries = $entries->map(function ($entry, $index) use ($data, $vendorId, $vendorSnapshot) {
                 $slot = $entry['slot'] ?? ($index + 1);
                 if ($slot === (int) $data['approved_quotation_index']) {
                     if (!empty($entry['file']['path'])) {
                         $entry['source_file'] = $entry['file'];
                         $entry['file'] = $this->quotationSignatureService->embed($entry['file']['path'], $data['approval_signature']);
                     }
-
                     $entry['admin_signature'] = $data['approval_signature'];
                     $entry['admin_signed_at'] = now('Asia/Kuala_Lumpur')->toDateTimeString();
+                    if ($vendorId) {
+                        $entry['vendor_id'] = $vendorId;
+                        $entry['vendor_snapshot'] = $vendorSnapshot;
+                        $entry['company_name'] = data_get($vendorSnapshot, 'company_name', $entry['company_name'] ?? null);
+                    }
                 }
-
                 return $entry;
             })->values()->all();
         } catch (\Throwable $e) {

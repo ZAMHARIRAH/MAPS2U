@@ -12,9 +12,21 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
+        return $this->renderDashboard(false);
+    }
+
+    public function mapsDashboard()
+    {
+        abort_unless(Auth::user()?->canOpenMapsFinanceSupport(), 403);
+
+        return $this->renderDashboard(true);
+    }
+
+    protected function renderDashboard(bool $mapsScope = false)
+    {
         /** @var User $admin */
         $admin = Auth::user();
-        $handledRoles = $admin->handledClientRoles();
+        $handledRoles = $mapsScope ? [User::CLIENT_KINDERGARTEN] : $admin->handledClientRoles();
 
         $requests = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
             ->whereHas('user', fn ($query) => $query->whereIn('sub_role', $handledRoles))
@@ -34,6 +46,9 @@ class AdminDashboardController extends Controller
 
         return view('dashboards.admin', [
             'admin' => $admin,
+            'mapsScope' => $mapsScope,
+            'dashboardTitle' => $mapsScope ? 'Dashboard MAPS' : 'Admin Dashboard',
+            'dashboardIntro' => $mapsScope ? 'Admin AIM can monitor the current MAPS workload and open MAPS finance forms here.' : $admin->roleLabel() . ' is signed in.',
             'totalTask' => $countableRequests->count(),
             'pendingCount' => $pendingCount,
             'completedCount' => $completedCount,
@@ -50,7 +65,8 @@ class AdminDashboardController extends Controller
 
         return view('admin.accounts.index', [
             'admin' => $admin,
-            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->orderBy('name')->get(),
+            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->where('sub_role', '!=', User::CLIENT_SSU)->orderBy('name')->get(),
+            'ssuAccounts' => User::where('role', User::ROLE_CLIENT)->where('sub_role', User::CLIENT_SSU)->orderBy('name')->get(),
             'technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->get(),
         ]);
     }

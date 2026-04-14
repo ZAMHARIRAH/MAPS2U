@@ -2,8 +2,8 @@
 @section('content')
 <div class="page-header">
     <div>
-        <h1>Finance</h1>
-        <p> </p>
+        <h1>{{ $pageTitle ?? 'Finance' }}</h1>
+        <p>{{ $pageIntro ?? ($isViewer ? 'Viewer can monitor all HQ Staff and Kindergarten finance submissions in view-only mode.' : 'Signed approved quotation and payment receipt history from technician jobs will appear here for finance processing.') }}</p>
     </div>
 </div>
 
@@ -15,7 +15,7 @@
 </div>
 
 <section class="panel" style="margin-top:20px;">
-    <div class="panel-head"><h3>{{ $isViewer ? 'Finance Monitoring' : 'Finance Queue' }}</h3></div>
+    <div class="panel-head"><h3>{{ $isViewer ? 'Finance Monitoring' : (($mapsScope ?? false) ? 'Finance MAPS Queue' : 'Finance Queue') }}</h3></div>
     <table class="table">
         <thead>
             <tr>
@@ -54,12 +54,12 @@
                     <td>
                         @if($isViewer)
                             @if($item->finance_completed_at)
-                                <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">View Finance Form</a>
+                                <a class="btn small accent" href="{{ ($mapsScope ?? false) ? route('admin.maps.finance.show', $item) : route('admin.finance.show', $item) }}">View Finance Form</a>
                             @else
                                 <span class="helper-text">Not uploaded yet</span>
                             @endif
                         @else
-                            <a class="btn small accent" href="{{ route('admin.finance.show', $item) }}">Open</a>
+                            <a class="btn small accent" href="{{ ($mapsScope ?? false) ? route('admin.maps.finance.show', $item) : route('admin.finance.show', $item) }}">Open</a>
                         @endif
                     </td>
                 </tr>

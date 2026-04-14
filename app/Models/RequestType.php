@@ -11,7 +11,8 @@ class RequestType extends Model
 
     public const TARGET_HQ = 'hq_staff';
     public const TARGET_KINDERGARTEN = 'kindergarten';
-    public const TARGET_BOTH = 'both';
+    public const TARGET_SSU = 'ssu';
+    public const TARGET_ALL = 'all';
 
     protected $fillable = [
         'name',
@@ -43,10 +44,14 @@ class RequestType extends Model
     public function scopeVisibleToClientRole($query, string $clientSubRole)
     {
         if ($clientSubRole === User::CLIENT_HQ) {
-            return $query->whereIn('role_scope', [self::TARGET_HQ, self::TARGET_BOTH]);
+            return $query->whereIn('role_scope', [self::TARGET_HQ, self::TARGET_ALL]);
         }
 
-        return $query->whereIn('role_scope', [self::TARGET_KINDERGARTEN, self::TARGET_BOTH]);
+        if ($clientSubRole === User::CLIENT_SSU) {
+            return $query->whereIn('role_scope', [self::TARGET_SSU, self::TARGET_ALL]);
+        }
+
+        return $query->whereIn('role_scope', [self::TARGET_KINDERGARTEN, self::TARGET_ALL]);
     }
 
     public function roleScopeLabel(): string
@@ -54,7 +59,8 @@ class RequestType extends Model
         return match ($this->role_scope) {
             self::TARGET_HQ => 'HQ Staff',
             self::TARGET_KINDERGARTEN => 'Kindergarten',
-            default => 'Both',
+            self::TARGET_SSU => 'SSU',
+            default => 'All',
         };
     }
 }

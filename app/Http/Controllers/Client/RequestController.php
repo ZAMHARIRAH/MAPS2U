@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\RequestQuestion;
 use App\Models\RequestType;
+use App\Models\TaskTitle;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +69,7 @@ class RequestController extends Controller
                 ->visibleToClientRole($user->sub_role)
                 ->where('is_active', true)
                 ->get(),
+            'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
             'requests' => $requests,
             'editingRequest' => $editingRequest,
             'activeTab' => $activeTab,
@@ -86,6 +88,57 @@ class RequestController extends Controller
         return view('client.requests.show', [
             'requestItem' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
             'feedbackSections' => $this->feedbackSections(),
+            'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
+        ]);
+    }
+
+
+
+    public function reportIndex(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        abort_unless($user->isSsu(), 403);
+
+        $allowedLocations = $this->locationsFor($user);
+        $allowedLocationIds = $allowedLocations->pluck('id')->filter()->values();
+
+        $query = ClientRequest::with(['location', 'requestType', 'department', 'assignedTechnician', 'relatedRequest'])
+            ->whereIn('location_id', $allowedLocationIds);
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->integer('location_id'));
+        }
+        if ($request->filled('state')) {
+            $state = $request->string('state')->toString();
+            $query->whereHas('location', fn ($q) => $q->where('state', $state));
+        }
+        if ($request->filled('status')) {
+            $status = (string) $request->input('status');
+
+            if ($status === ClientRequest::STATUS_COMPLETED) {
+                $query->whereNotNull('finance_completed_at');
+            } elseif ($status === ClientRequest::STATUS_FINANCE_PENDING) {
+                $query->whereNotNull('technician_completed_at')->whereNull('finance_completed_at')->whereNotNull('approved_quotation_index');
+            } else {
+                $query->where('status', $status);
+            }
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
+        }
+
+        $items = $query->latest()->get();
+
+        return view('client.reports.index', [
+            'items' => $items,
+            'locations' => $allowedLocations,
+            'availableStates' => collect($allowedLocations)->pluck('state')->filter()->unique()->values(),
+            'filters' => $request->all(),
+            'statusOptions' => ClientRequest::adminVisibleStatusOptions(),
         ]);
     }
 
@@ -108,24 +161,32 @@ class RequestController extends Controller
         abort_unless($clientRequest->status === ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW, 403);
 
         if ($request->boolean('agree_all')) {
+            $validated = $request->validate([
+                'agree_all_scale' => ['required', Rule::in(['1', '2', '3', '4', '5'])],
+                'agree_all_confirmed' => ['accepted'],
+                'additional_comments' => ['nullable', 'string'],
+            ]);
+
+            $scale = (int) $validated['agree_all_scale'];
             $ratings = [];
             foreach ($this->feedbackSections() as $sectionKey => $section) {
                 foreach ($section['questions'] as $questionKey => $questionText) {
-                    data_set($ratings, "$sectionKey.$questionKey", 5);
+                    data_set($ratings, "$sectionKey.$questionKey", $scale);
                 }
             }
 
             $clientRequest->update([
                 'feedback' => [
                     'ratings' => $ratings,
-                    'additional_comments' => '-',
+                    'additional_comments' => $validated['additional_comments'] ?? '-',
                     'submission_mode' => 'agree_all',
+                    'agree_all_scale' => $scale,
                 ],
                 'customer_review_submitted_at' => now(),
                 'status' => ClientRequest::STATUS_COMPLETED,
             ]);
 
-            return back()->with('success', 'All feedback questions have been marked as Strongly Agree. Job marked as completed.');
+            return back()->with('success', 'Agree All feedback submitted successfully based on the selected scale. Job marked as completed.');
         }
 
         $rules = ['additional_comments' => ['nullable', 'string']];
@@ -174,7 +235,7 @@ class RequestController extends Controller
             $key = 'answers.' . $question->id;
             if ($question->question_type === RequestQuestion::TYPE_REMARK) {
                 $dynamicRules[$key] = [$question->is_required ? 'required' : 'nullable', 'string'];
-            } elseif ($question->question_type === RequestQuestion::TYPE_RADIO) {
+            } elseif (in_array($question->question_type, [RequestQuestion::TYPE_RADIO, RequestQuestion::TYPE_TASK_TITLE], true)) {
                 $dynamicRules[$key . '.value'] = [$question->is_required ? 'required' : 'nullable', 'string'];
                 $dynamicRules[$key . '.other'] = ['nullable', 'string'];
             } elseif ($question->question_type === RequestQuestion::TYPE_DATE_RANGE) {
@@ -254,10 +315,17 @@ class RequestController extends Controller
     {
         $type = $user->sub_role === User::CLIENT_HQ ? Location::TYPE_HQ : Location::TYPE_BRANCH;
 
-        return Location::where('type', $type)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $query = Location::where('type', $type)
+            ->where('is_active', true);
+
+        if ($user->isSsu()) {
+            $states = collect($user->region_states ?? [])->filter()->values()->all();
+            if (!empty($states)) {
+                $query->whereIn('state', $states);
+            }
+        }
+
+        return $query->orderBy('name')->get();
     }
 
     private function feedbackSections(): array

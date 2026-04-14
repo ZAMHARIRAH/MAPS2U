@@ -46,7 +46,7 @@
 
 <section class="panel request-hero-card">
     @if(auth()->user()->isViewer())
-        <div class="alert-card info" style="margin-bottom:16px;"><strong>Monitoring mode</strong><div> </div></div>
+        <div class="alert-card info" style="margin-bottom:16px;"><strong>Monitoring mode</strong><div>Viewer can review all HQ Staff and Kindergarten requests in view-only mode.</div></div>
     @endif
     <div class="page-header request-hero-head">
         <div>
@@ -83,7 +83,7 @@
                     <div class="answer-response">
                         @if($question->question_type === 'remark')
                             <p>{{ $answer ?: '-' }}</p>
-                        @elseif($question->question_type === 'radio')
+                        @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
                             <p>{{ data_get($answer, 'value', '-') }} @if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }} @endif</p>
                         @elseif($question->question_type === 'date_range')
                             <p>{{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }}<br>{{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}</p>
@@ -125,8 +125,14 @@
             <div class="panel-head"><h3>Admin Review Approval</h3></div>
             <div class="summary-stack">
                 <div class="summary-card compact-summary"><strong>Approval Status</strong><span class="badge {{ $submission->adminApprovalBadgeClass() }}">{{ $submission->adminApprovalLabel() }}</span></div>
+                @if($submission->admin_approved_remark)
+                    <div class="summary-card compact-summary"><strong>Approved Remark</strong><span>{{ $submission->admin_approved_remark }}</span></div>
+                @endif
+                @if($submission->subject_to_approval_remark)
+                    <div class="summary-card compact-summary"><strong>Subject To Approval Remark</strong><span>{{ $submission->subject_to_approval_remark }}</span></div>
+                @endif
                 @if($submission->admin_approval_remark)
-                    <div class="summary-card compact-summary"><strong>Notes</strong><span>{{ $submission->admin_approval_remark }}</span></div>
+                    <div class="summary-card compact-summary"><strong>Rejected Remark</strong><span>{{ $submission->admin_approval_remark }}</span></div>
                 @endif
             </div>
             @if($submission->status === \App\Models\ClientRequest::STATUS_REJECTED || $submission->admin_approval_status === 'rejected')
@@ -134,22 +140,51 @@
                     <strong>Request Rejected</strong>
                     <div>{{ $submission->admin_approval_remark ?: 'No rejection remark provided.' }}</div>
                 </div>
-            @elseif($submission->admin_approval_status !== 'approved')
-                <div class="action-row" style="margin-top:14px;">
-                    <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}">
+            @else
+                @if(!$submission->subjectToApprovalTicked() && $submission->admin_approval_status === 'subject_to_approval')
+                    <div class="alert-card warning" style="margin-top:14px;">
+                        <strong>Final approval pending</strong>
+                        <div>This request stays under review until the checkbox below is ticked.</div>
+                    </div>
+                @endif
+                @if($submission->admin_approval_status !== 'approved')
+                    <div class="action-row" style="margin-top:14px; flex-wrap:wrap;">
+                        <button class="btn primary" type="button" onclick="toggleBlock('admin-approve-form')">Approved</button>
+                        <button class="btn warning" type="button" onclick="toggleBlock('admin-subject-form')">Subject To Approval</button>
+                        <button class="btn danger" type="button" onclick="toggleBlock('admin-reject-form')">Reject</button>
+                    </div>
+                    <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" id="admin-approve-form" class="hidden-form-block{{ old('decision') === 'approved' ? ' show-block' : '' }}" style="margin-top:14px;">
                         @csrf
                         <input type="hidden" name="decision" value="approved">
-                        <button class="btn primary" type="submit">Approved</button>
+                        <label>Approved Remark</label>
+                        <textarea name="admin_approved_remark" placeholder="This remark is private to admin and print only." required>{{ old('admin_approved_remark', $submission->admin_approved_remark) }}</textarea>
+                        <div class="action-row" style="margin-top:12px;"><button class="btn primary" type="submit">Submit</button></div>
                     </form>
-                    <button class="btn danger" type="button" onclick="toggleBlock('admin-reject-form')">Reject</button>
-                </div>
-                <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" id="admin-reject-form" class="hidden-form-block{{ old('decision') === 'rejected' ? ' show-block' : '' }}" style="margin-top:14px;">
-                    @csrf
-                    <input type="hidden" name="decision" value="rejected">
-                    <label>Reject Remark</label>
-                    <textarea name="admin_approval_remark" placeholder="Please explain why this request is rejected." required>{{ old('admin_approval_remark') }}</textarea>
-                    <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Submit</button></div>
-                </form>
+                    <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" id="admin-subject-form" class="hidden-form-block{{ old('decision') === 'subject_to_approval' ? ' show-block' : '' }}" style="margin-top:14px;">
+                        @csrf
+                        <input type="hidden" name="decision" value="subject_to_approval">
+                        <label>Subject To Approval Remark</label>
+                        <textarea name="subject_to_approval_remark" placeholder="This remark is private to admin and print only." required>{{ old('subject_to_approval_remark', $submission->subject_to_approval_remark) }}</textarea>
+                        <div class="action-row" style="margin-top:12px;"><button class="btn warning" type="submit">Submit</button></div>
+                    </form>
+                    <form method="POST" action="{{ route('admin.incoming-requests.decision', $submission) }}" id="admin-reject-form" class="hidden-form-block{{ old('decision') === 'rejected' ? ' show-block' : '' }}" style="margin-top:14px;">
+                        @csrf
+                        <input type="hidden" name="decision" value="rejected">
+                        <label>Reject Remark</label>
+                        <textarea name="admin_approval_remark" placeholder="Please explain why this request is rejected." required>{{ old('admin_approval_remark') }}</textarea>
+                        <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Submit</button></div>
+                    </form>
+                @endif
+                @if($submission->admin_approval_status === 'subject_to_approval')
+                    <form method="POST" action="{{ route('admin.incoming-requests.subject-approval-toggle', $submission) }}" style="margin-top:14px;">
+                        @csrf
+                        <input type="hidden" name="approved" value="0">
+                        <label style="display:flex;gap:8px;align-items:center;font-weight:600;">
+                            <input type="checkbox" name="approved" value="1" {{ $submission->subjectToApprovalTicked() ? 'checked' : '' }} onchange="this.form.submit()">
+                            Approved
+                        </label>
+                    </form>
+                @endif
             @endif
         </section>
 
@@ -162,6 +197,8 @@
                     <span>{{ $submission->assignedTechnician?->name ?? 'Not assigned yet' }}</span>
                     @if($submission->admin_approval_status === 'approved')
                         <span class="helper-text">Ready to update</span>
+                    @elseif($submission->admin_approval_status === 'subject_to_approval')
+                        <span class="helper-text">Tick the final approved checkbox first</span>
                     @endif
                 </div>
             </div>
@@ -186,6 +223,28 @@
 
         <section class="panel shaded-panel">
             <div class="panel-head"><h3>Technician Review</h3></div>
+            <div class="summary-card compact-summary" style="margin-bottom:14px;">
+                <strong>Admin ↔ Technician Remarks</strong>
+                <div style="display:grid;gap:10px;margin-top:10px;">
+                    @forelse($submission->adminTechnicianRemarkLines() as $log)
+                        <div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;">
+                            <div class="helper-text" style="margin-bottom:6px;font-weight:600;">{{ $log['header'] }}</div>
+                            <div>{!! nl2br(e($log['remark'])) !!}</div>
+                        </div>
+                    @empty
+                        <div class="helper-text">No shared remark yet.</div>
+                    @endforelse
+                </div>
+            </div>
+            @unless(auth()->user()->isViewer())
+            <div class="action-row" style="margin-bottom:14px;"><button class="btn primary" type="button" onclick="toggleBlock('admin-tech-remark-form')">Add Remark</button></div>
+            <form method="POST" action="{{ route('admin.incoming-requests.technician-review-remark', $submission) }}" id="admin-tech-remark-form" class="hidden-form-block" style="margin-bottom:14px;">
+                @csrf
+                <label>Add Admin Remark for Technician</label>
+                <textarea name="remark" placeholder="Type a new remark for technician. Previous messages stay locked."></textarea>
+                <div class="action-row" style="margin-top:12px;"><button class="btn primary" type="submit">Send Remark</button></div>
+            </form>
+            @endunless
             @if($submission->technician_review_updated_at)
                 <div class="summary-stack">
                     <div class="summary-card compact-summary"><strong>Clarification</strong><span>{{ ucfirst(str_replace('_', ' ', $submission->reviewValue('clarification_level'))) }}</span></div>
@@ -258,6 +317,43 @@
     </aside>
 </div>
 
+<section class="panel shaded-panel" style="margin-top:20px;">
+    <div class="panel-head"><h3>Management Viewer Remark Summary</h3></div>
+    <div class="summary-card compact-summary">
+        <strong>History Log</strong>
+        <div style="display:grid;gap:10px;margin-top:10px;">
+            @forelse($submission->viewerSummaryHistoryLines() as $log)
+                <div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;">
+                    <div class="helper-text" style="margin-bottom:6px;font-weight:600;">{{ $log['header'] }}</div>
+                    <div>{!! nl2br(e($log['remark'])) !!}</div>
+                    @if($log['signature'])
+                        <div class="signature-image-card" style="margin-top:10px;max-width:220px;"><img src="{{ $log['signature'] }}" alt="Viewer history signature"></div>
+                    @endif
+                </div>
+            @empty
+                <div class="helper-text">No viewer history yet.</div>
+            @endforelse
+        </div>
+    </div>
+    @if(auth()->user()->isViewer())
+        <div class="action-row" style="margin-top:16px;"><button class="btn primary" type="button" onclick="toggleBlock('viewer-summary-form')">Add Remark</button></div>
+        <form method="POST" action="{{ route('admin.incoming-requests.viewer-summary', $submission) }}" id="viewer-summary-form" class="hidden-form-block" style="margin-top:16px;">
+            @csrf
+            <label>Remark Summary</label>
+            <textarea name="viewer_summary_remark" required placeholder="Management summary remark">{{ old('viewer_summary_remark') }}</textarea>
+            <div class="signature-pad-shell" style="margin-top:14px;max-width:520px;">
+                <div>
+                    <label>Viewer Signature</label>
+                    <canvas class="signature-pad admin-signature-pad" data-target="viewer-summary-signature"></canvas>
+                    <input type="hidden" name="viewer_summary_signature" id="viewer-summary-signature" value="{{ old('viewer_summary_signature') }}" required>
+                    <button class="btn tiny ghost signature-clear" type="button">Clear</button>
+                </div>
+            </div>
+            <div class="action-row" style="margin-top:12px;"><button class="btn primary" type="submit">Submit Remark Summary</button></div>
+        </form>
+    @endif
+</section>
+
 @if($submission->status !== \App\Models\ClientRequest::STATUS_REJECTED)
 <div class="content-grid two-two admin-ops-grid" style="margin-top:20px; align-items:start;">
     <section class="panel shaded-panel">
@@ -272,6 +368,9 @@
                     <div class="quote-card {{ $submission->approved_quotation_index === $quoteNumber ? 'quote-card-approved' : ($submission->approved_quotation_index ? 'quote-card-muted' : '') }}">
                         <div class="quote-head"><strong>Quotation {{ $quoteNumber }}</strong><span>{{ $quote['company_name'] ?? '-' }}</span></div>
                         <div class="helper-text">Amount: RM {{ number_format((float) ($quote['amount'] ?? 0), 2) }}</div>
+                        @if(!empty($quote['subject_to_approval']))
+                            <div class="badge warning" style="margin-top:8px;display:inline-flex;">Subject To Approval</div>
+                        @endif
                         @if(!empty($quote['summary_report']))
                             <p class="helper-text" style="margin-top:8px;">{{ $quote['summary_report'] }}</p>
                         @endif
@@ -280,6 +379,14 @@
                                 <a class="btn small ghost" href="{{ $fileUrl($quote['file']['path']) }}" target="_blank">View File</a>
                             @endif
                         </div>
+                        @if(!empty($quote['vendor_snapshot']))
+                            <div class="summary-stack" style="margin-top:12px;">
+                                <div class="summary-card compact-summary span-2"><strong>Vendor Company</strong><span>{{ data_get($quote, 'vendor_snapshot.company_name') ?: '-' }}</span></div>
+                                <div class="summary-card compact-summary"><strong>SSM Number</strong><span>{{ data_get($quote, 'vendor_snapshot.ssm_number') ?: '-' }}</span></div>
+                                <div class="summary-card compact-summary"><strong>Phone</strong><span>{{ data_get($quote, 'vendor_snapshot.phone_number') ?: '-' }}</span></div>
+                                <div class="summary-card compact-summary span-2"><strong>Office Address</strong><span>{{ data_get($quote, 'vendor_snapshot.office_address') ?: '-' }}</span></div>
+                            </div>
+                        @endif
                         @if(!empty($quote['summary_files']))
                             <div class="board-section" style="margin-top:12px;">
                                 <div class="panel-head compact"><h4>Supporting Files</h4></div>
@@ -296,11 +403,24 @@
                                 <div class="signature-image-card" style="margin-top:8px;"><img src="{{ $quote['admin_signature'] }}" alt="Approval signature"></div>
                                 <div class="action-row" style="margin-top:8px;"><span class="badge success">Approved</span></div>
                             @elseif(!$submission->approved_quotation_index)
-                                <form method="POST" action="{{ route('admin.incoming-requests.approve-quotation', $submission) }}">
+                                <form method="POST" action="{{ route('admin.incoming-requests.approve-quotation', $submission) }}" enctype="multipart/form-data">
                                     @csrf
                                     <input type="hidden" name="approved_quotation_index" value="{{ $quoteNumber }}">
                                     <canvas class="signature-pad admin-signature-pad" data-target="approval-signature-{{ $quoteNumber }}"></canvas>
                                     <input type="hidden" name="approval_signature" id="approval-signature-{{ $quoteNumber }}" required>
+                                    @if(!empty($quote['subject_to_approval']) && empty($quote['vendor_id']))
+                                        <label class="inline-check" style="margin-top:10px;"><input type="checkbox" name="create_vendor" value="1" checked> Approve and register vendor</label>
+                                        <label>Company Name</label><input type="text" name="company_name" value="{{ $quote['company_name'] ?? '' }}">
+                                        <label>SSM Number</label><input type="text" name="ssm_number">
+                                        <label>Office Address</label><textarea name="office_address"></textarea>
+                                        <label>Phone Number</label><input type="text" name="phone_number">
+                                        <label>Fax Number</label><input type="text" name="fax_number">
+                                        <label>Official Email</label><input type="email" name="official_email">
+                                        <label>Contact Person</label><input type="text" name="contact_person">
+                                        <label>Bank</label><input type="text" name="bank">
+                                        <label>Account Number for Payment</label><input type="text" name="account_number_for_payment">
+                                        <label>Upload Document</label><input type="file" name="document">
+                                    @endif
                                     <div class="action-row" style="margin-top:8px;">
                                         <button class="btn tiny ghost signature-clear" type="button">Clear</button>
                                         <button class="btn small primary" type="submit">Approve & Send</button>
@@ -366,6 +486,8 @@
                         <span class="badge neutral">{{ $session['resolved_duration'] ?? '-' }}</span>
                     </div>
                     <p class="helper-text" style="margin:8px 0 0;">{{ $session['remark'] ?? '-' }}</p>
+                    @if(!empty($session['verify_by_signed_at_label']))<div class="helper-text" style="margin-top:8px;"><strong>Verify signed:</strong> {{ $session['verify_by_signed_at_label'] }}</div>@endif
+                    @if(!empty($session['verify_by']))<div class="signature-image-card" style="margin-top:10px;max-width:220px;"><img src="{{ $session['verify_by'] }}" alt="Daily log verify signature"></div>@endif
                     @php($sessionFiles = collect($session['attachments'] ?? [])->filter(fn ($file) => str_contains(strtolower($file['mime_type'] ?? ''), 'image') || str_contains(strtolower($file['mime_type'] ?? ''), 'pdf'))->values())
                     @if($sessionFiles->isNotEmpty())
                         <div class="preview-grid two-up" style="margin-top:12px;">
@@ -432,6 +554,21 @@
         <div class="summary-card compact-summary"><strong>Duration Of Work</strong><span>{{ data_get($submission->customer_service_report, 'duration_of_work') ?: '-' }}</span></div>
         <div class="summary-card compact-summary"><strong>Submitted At</strong><span>{{ data_get($submission->customer_service_report, 'submitted_at') ?: '-' }}</span></div>
         <div class="summary-card compact-summary span-2"><strong>Description Of Work</strong><span>{!! nl2br(e(data_get($submission->customer_service_report, 'description_of_work') ?: '-')) !!}</span></div>
+        @if(!empty(data_get($submission->customer_service_report, 'description_entries', [])))
+            <div class="summary-card compact-summary span-2">
+                <strong>Description Remark Evidence</strong>
+                <div style="display:grid;gap:12px;margin-top:10px;">
+                    @foreach(data_get($submission->customer_service_report, 'description_entries', []) as $entry)
+                        <div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;display:grid;gap:8px;">
+                            <div><strong>{{ $entry['date_label'] ?? '-' }}</strong> • {{ $entry['time_range'] ?? '-' }} • {{ $entry['duration_label'] ?? '-' }}</div>
+                            <div>{{ $entry['remark'] ?? '-' }}</div>
+                            <div class="helper-text">Verify signed: {{ $entry['verify_by_signed_at_label'] ?? '-' }}</div>
+                            @if(!empty($entry['verify_by_signature']))<div class="signature-image-card" style="max-width:220px;"><img src="{{ $entry['verify_by_signature'] }}" alt="CSR verify signature"></div>@endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
         <div class="summary-card compact-summary span-2"><strong>Suggestion / Recommendation</strong><span>{{ data_get($submission->customer_service_report, 'suggestion_recommendation') ?: '-' }}</span></div>
     </div>
     @if(!empty(data_get($submission->customer_service_report, 'attachments', [])))

@@ -5,6 +5,13 @@
 @if($mode==='edit')<input type="hidden" name="type" value="{{ old('type', $location->type) }}">@endif
 <label>Name</label><input type="text" name="name" value="{{ old('name', $location->name) }}" required>
 <label>Address</label><input type="text" name="address" value="{{ old('address', $location->address) }}">
+<label>State</label>
+<select name="state" required>
+    <option value="">Select state</option>
+    @foreach($stateOptions as $state)
+        <option value="{{ $state }}" {{ old('state', $location->state) === $state ? 'selected' : '' }}>{{ $state }}</option>
+    @endforeach
+</select>
 <label class="inline-check"><input type="checkbox" name="is_active" value="1" {{ old('is_active', $location->exists ? $location->is_active : true) ? 'checked' : '' }}> Active</label>
 <div class="action-row" style="margin-top:18px;"><button class="btn primary" type="submit">Save Changes</button><a class="btn ghost" href="{{ route('admin.locations.index', $type) }}">Discard</a></div>
 </form></div></div>

@@ -4,7 +4,7 @@
 <div class="page-header premium-page-header">
     <div>
         <h1>Technician Dashboard</h1>
-        <p>Welcome back, {{ $user->name }}. </p>
+        <p>Welcome back, {{ $user->name }}. Here is the latest overview of your assigned job requests.</p>
     </div>
     <a class="btn primary" href="{{ route('technician.job-requests.index') }}">Open All Job Requests</a>
 </div>

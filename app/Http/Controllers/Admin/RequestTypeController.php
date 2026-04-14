@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\RequestQuestion;
 use App\Models\RequestType;
+use App\Models\TaskTitle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -23,6 +24,7 @@ class RequestTypeController extends Controller
         return view('admin.request-types.form', [
             'requestType' => new RequestType(),
             'mode' => 'create',
+            'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
         ]);
     }
 
@@ -55,6 +57,7 @@ class RequestTypeController extends Controller
         return view('admin.request-types.form', [
             'requestType' => $requestType->load('questions.options'),
             'mode' => 'edit',
+            'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
         ]);
     }
 
@@ -89,13 +92,13 @@ class RequestTypeController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'role_scope' => ['required', Rule::in(['hq_staff', 'kindergarten', 'both'])],
+            'role_scope' => ['required', Rule::in(['hq_staff', 'kindergarten', 'ssu', 'all'])],
             'urgency_enabled' => ['nullable', 'boolean'],
             'attachment_required' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.question_text' => ['required', 'string', 'max:5000'],
-            'questions.*.question_type' => ['required', Rule::in(['remark', 'radio', 'date_range', 'checkbox'])],
+            'questions.*.question_type' => ['required', Rule::in(['remark', 'radio', 'date_range', 'checkbox', 'task_title'])],
             'questions.*.is_required' => ['nullable', 'boolean'],
             'questions.*.start_label' => ['nullable', 'string', 'max:255'],
             'questions.*.end_label' => ['nullable', 'string', 'max:255'],

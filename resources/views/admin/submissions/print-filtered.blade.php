@@ -56,46 +56,32 @@
     @foreach($items as $item)
         @php
             $feedback = $item->feedback ?? [];
-            $approvedQuotation = $item->approvedQuotation();
-            $quotationSupportingFiles = collect(data_get($approvedQuotation, 'summary_files', []))->filter(fn ($file) => !empty($file['path']))->values();
         @endphp
         <section class="document-page">
             <h2 class="page-title" style="font-size:24px;">Completed Request Document ({{ $item->request_code }})</h2>
-            <p class="page-sub"> </p>
-            <div class="detail-grid">
-                <section class="box">
-                    <h3 style="margin-top:0;text-align:center;">Request Details</h3>
-                    <div class="list">
-                        <div class="row"><strong>Client</strong><span>{{ $item->full_name }}</span></div>
-                        <div class="row"><strong>Phone Number</strong><span>{{ $item->phone_number }}</span></div>
-                        <div class="row"><strong>Role</strong><span>{{ $item->user?->roleLabel() ?? '-' }}</span></div>
-                        <div class="row"><strong>Request Type</strong><span>{{ $item->requestType?->name ?? '-' }}</span></div>
-                        @if($showBothLocations)
-                        <div class="row"><strong>Location (HQ Staff)</strong><span>{{ $item->user?->sub_role === \App\Models\User::CLIENT_HQ ? ($item->location?->name ?? '-') : '-' }}</span></div>
-                        <div class="row"><strong>Branches (Kindergarten)</strong><span>{{ $item->user?->sub_role === \App\Models\User::CLIENT_KINDERGARTEN ? ($item->location?->name ?? '-') : '-' }}</span></div>
-                        @elseif($primaryClientRole === \App\Models\User::CLIENT_HQ)
-                        <div class="row"><strong>Location</strong><span>{{ $item->location?->name ?? '-' }}</span></div>
-                        @else
-                        <div class="row"><strong>Branches</strong><span>{{ $item->location?->name ?? '-' }}</span></div>
-                        @endif
-                        <div class="row"><strong>Department</strong><span>{{ $item->department?->name ?? '-' }}</span></div>
-                        <div class="row"><strong>Assigned Technician</strong><span>{{ $item->assignedTechnician?->name ?? '-' }}</span></div>
-                        <div class="row"><strong>Status</strong><span>{{ $item->adminWorkflowLabel() }}</span></div>
-                        <div class="row"><strong>Completed At</strong><span>{{ $item->finance_completed_at ? $item->finance_completed_at->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') : '-' }}</span></div>
-                        @if($quotationSupportingFiles->isNotEmpty())
-                        <div class="row"><strong>Quotation Supporting Files</strong><div class="images {{ $quotationSupportingFiles->count() === 1 ? 'single' : '' }}">@foreach($quotationSupportingFiles as $file)@include('components.print-media-card', ['file' => $file, 'label' => $file['original_name'] ?? 'Supporting file'])@endforeach</div></div>
-                        @endif
+            <p class="page-sub">Clean table printout for filtered report documents.</p>
+            <section class="table-box">
+                <div class="table-title">Request Details</div>
+                <table>
+                    <tbody>
+                        <tr><th style="width:30%">Client</th><td>{{ $item->full_name }}</td></tr>
+                        <tr><th>Phone Number</th><td>{{ $item->phone_number }}</td></tr>
+                        <tr><th>Role</th><td>{{ $item->user?->roleLabel() ?? '-' }}</td></tr>
+                        <tr><th>Request Type</th><td>{{ $item->requestType?->name ?? '-' }}</td></tr>
+                        <tr><th>Location / Branch</th><td>{{ $item->location?->name ?? '-' }}</td></tr>
+                        <tr><th>Department</th><td>{{ $item->department?->name ?? '-' }}</td></tr>
+                        <tr><th>Assigned Technician</th><td>{{ $item->assignedTechnician?->name ?? '-' }}</td></tr>
+                        <tr><th>Status</th><td>{{ $item->adminWorkflowLabel() }}</td></tr>
+                        <tr><th>Completed At</th><td>{{ $item->finance_completed_at ? $item->finance_completed_at->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') : '-' }}</td></tr>
                         @foreach(($item->requestType->questions ?? []) as $question)
-                            @php
-                                $answer = $item->answers[$question->id] ?? null;
-                            @endphp
-                            <div class="row">
-                                <strong>{{ $question->question_text }}</strong>
-                                <div>
+                            @php $answer = $item->answers[$question->id] ?? null; @endphp
+                            <tr>
+                                <th>{{ $question->question_text }}</th>
+                                <td>
                                     @if($question->question_type === 'remark')
                                         {{ $answer ?: '-' }}
-                                    @elseif($question->question_type === 'radio')
-                                        {{ data_get($answer, 'value', '-') }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
+                                    @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
+                                        {{ data_get($answer, 'label', data_get($answer, 'value', '-')) }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
                                     @elseif($question->question_type === 'date_range')
                                         {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
                                     @else
@@ -106,38 +92,34 @@
                                         @endphp
                                         {{ $itemsText ?: '-' }}
                                     @endif
-                                </div>
-                            </div>
+                                </td>
+                            </tr>
                         @endforeach
-                    </div>
-                </section>
-                <section class="box">
-                    <h3 style="margin-top:0;text-align:center;">Client Feedback</h3>
-                    <div class="list">
-                        <div class="row"><strong>Average Rating</strong><span>{{ $item->feedbackAverage() ? number_format($item->feedbackAverage(), 2) . ' / 5' : '-' }}</span></div>
-                        <div class="row"><strong>Additional Comments</strong><div>{{ data_get($feedback, 'additional_comments') ?: '-' }}</div></div>
-                        @php
-                            $hasRows = false;
-                        @endphp
+                    </tbody>
+                </table>
+            </section>
+            <section class="table-box" style="margin-top:16px;">
+                <div class="table-title">Client Feedback</div>
+                <table>
+                    <tbody>
+                        <tr><th style="width:30%">Average Rating</th><td>{{ $item->feedbackAverage() ? number_format($item->feedbackAverage(), 2) . ' / 5' : '-' }}</td></tr>
+                        <tr><th>Additional Comments</th><td>{{ data_get($feedback, 'additional_comments') ?: '-' }}</td></tr>
+                        @php $hasRows = false; @endphp
                         @foreach($feedbackSections as $sectionKey => $section)
                             @foreach($section['questions'] as $questionKey => $questionText)
-                                @php
-                                $rating = data_get($feedback, "ratings.$sectionKey.$questionKey");
-                            @endphp
+                                @php $rating = data_get($feedback, "ratings.$sectionKey.$questionKey"); @endphp
                                 @if($rating)
-                                    @php
-                                    $hasRows = true;
-                                @endphp
-                                    <div class="row"><strong>{{ $section['title'] }}</strong><div>{{ $questionText }}</div><div style="margin-top:8px;"><span class="rating-badge">{{ $rating }}/5</span></div></div>
+                                    @php $hasRows = true; @endphp
+                                    <tr><th>{{ $section['title'] }}</th><td>{{ $questionText }} — {{ $rating }}/5</td></tr>
                                 @endif
                             @endforeach
                         @endforeach
                         @if(!$hasRows)
-                            <div class="row"><strong>Feedback</strong><span>No client feedback submitted.</span></div>
+                            <tr><th>Feedback</th><td>No client feedback submitted.</td></tr>
                         @endif
-                    </div>
-                </section>
-            </div>
+                    </tbody>
+                </table>
+            </section>
         </section>
     @endforeach
 @endif

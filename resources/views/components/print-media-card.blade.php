@@ -2,7 +2,8 @@
     $file = $file ?? [];
     $mime = strtolower($file['mime_type'] ?? '');
     $path = $file['path'] ?? null;
-    $url = $path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null;
+    $dataUrl = $file['data_url'] ?? null;
+    $url = $dataUrl ?: ($path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null);
 @endphp
 <div class="image-card">
     @if($url && str_contains($mime, 'pdf'))

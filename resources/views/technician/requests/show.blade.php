@@ -46,7 +46,7 @@
                     <div class="answer-response">
                         @if($question->question_type === 'remark')
                             <p>{{ $answer ?: '-' }}</p>
-                        @elseif($question->question_type === 'radio')
+                        @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
                             <p>{{ data_get($answer, 'value', '-') }} @if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }} @endif</p>
                         @elseif($question->question_type === 'date_range')
                             <p>{{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }}<br>{{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}</p>
@@ -97,6 +97,28 @@
     <aside class="control-stack">
         <section class="panel shaded-panel">
             <div class="panel-head"><h3>Review</h3></div>
+            <div class="summary-card compact-summary" style="margin-bottom:14px;">
+                <strong>Admin ↔ Technician Remarks</strong>
+                <div style="display:grid;gap:10px;margin-top:10px;">
+                    @forelse($job->adminTechnicianRemarkLines() as $log)
+                        <div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;">
+                            <div class="helper-text" style="margin-bottom:6px;font-weight:600;">{{ $log['header'] }}</div>
+                            <div>{!! nl2br(e($log['remark'])) !!}</div>
+                        </div>
+                    @empty
+                        <div class="helper-text">No shared remark yet.</div>
+                    @endforelse
+                </div>
+            </div>
+            @unless($isLocked)
+            <div class="action-row" style="margin-bottom:14px;"><button class="btn primary" type="button" onclick="toggleBlock('technician-review-remark-form')">Add Remark</button></div>
+            <form method="POST" action="{{ route('technician.job-requests.review-remark', $job) }}" id="technician-review-remark-form" class="hidden-form-block" style="margin-bottom:14px;">
+                @csrf
+                <label>Add Your Remark</label>
+                <textarea name="remark" placeholder="Type your update here. Previous messages stay locked."></textarea>
+                <div class="action-row" style="margin-top:14px;"><button class="btn primary" type="submit">Send Remark</button></div>
+            </form>
+            @endunless
             @if($job->technician_review_updated_at)
                 <div class="summary-stack">
                     <div class="summary-card compact-summary"><strong>Clarification</strong><span>{{ ucfirst(str_replace('_', ' ', data_get($review, 'clarification_level', '-'))) }}</span></div>
@@ -231,7 +253,18 @@
                         <label>Upload File</label>
                         <input type="file" name="quotation_{{ $i }}_file" {{ $i === 1 && empty($existingQuote['file']) ? 'required' : '' }}>
                         <label>Company Name</label>
-                        <input type="text" name="quotation_{{ $i }}_company_name" value="{{ $existingQuote['company_name'] ?? '' }}">
+                        <select name="quotation_{{ $i }}_vendor_id" class="vendor-select" data-slot="{{ $i }}">
+                            <option value="">Select registered vendor</option>
+                            @foreach($vendors as $vendor)
+                                <option value="{{ $vendor->id }}" {{ (string) ($existingQuote['vendor_id'] ?? '') === (string) $vendor->id ? 'selected' : '' }}>{{ $vendor->company_name }}</option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="quotation_{{ $i }}_company_name" value="{{ $existingQuote['company_name'] ?? '' }}">
+                        <label class="inline-check" style="margin-top:10px;"><input type="checkbox" name="quotation_{{ $i }}_subject_to_approval" value="1" class="subject-to-approval-toggle" data-slot="{{ $i }}" {{ !empty($existingQuote['subject_to_approval']) ? 'checked' : '' }}> Subject To Approval</label>
+                        <div id="manual-company-wrap-{{ $i }}" class="{{ !empty($existingQuote['subject_to_approval']) ? 'show-block' : '' }}" style="display:{{ !empty($existingQuote['subject_to_approval']) ? 'block' : 'none' }};">
+                            <label>Manual Company Name</label>
+                            <input type="text" name="quotation_{{ $i }}_manual_company_name" value="{{ !empty($existingQuote['subject_to_approval']) ? ($existingQuote['company_name'] ?? '') : '' }}">
+                        </div>
                         <label>Amount (RM)</label>
                         <input type="number" step="0.01" min="0" name="quotation_{{ $i }}_amount" value="{{ $existingQuote['amount'] ?? '' }}" class="quotation-amount-input" data-slot="{{ $i }}">
                         <div class="quotation-summary-extra {{ (float) ($existingQuote['amount'] ?? 0) > 5000 ? 'show-block' : '' }}" id="quotation-summary-extra-{{ $i }}">
@@ -258,6 +291,7 @@
                 <div class="summary-card compact-summary"><strong>Approved Slot</strong><span>Quotation {{ $job->approved_quotation_index }}</span></div>
                 <div class="summary-card compact-summary"><strong>Amount</strong><span>RM {{ number_format((float) ($approved['amount'] ?? 0), 2) }}</span></div>
                 <div class="summary-card compact-summary"><strong>Company</strong><span>{{ $approved['company_name'] ?? '-' }}</span></div>
+                @if(!empty($approved['subject_to_approval']))<div class="summary-card compact-summary"><strong>Mode</strong><span>Subject To Approval</span></div>@endif
             </div>
             @if(!empty($approved['summary_files']))
                 <div class="board-section" style="margin-top:12px;">
@@ -426,6 +460,26 @@
         </div>
     </section>
 
+    <section class="panel shaded-panel" style="margin-top:20px;">
+        <div class="panel-head"><h3>Management Viewer Remark Summary</h3></div>
+        <div class="summary-card compact-summary">
+            <strong>History Log</strong>
+            <div style="display:grid;gap:10px;margin-top:10px;">
+                @forelse($job->viewerSummaryHistoryLines() as $log)
+                    <div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;">
+                        <div class="helper-text" style="margin-bottom:6px;font-weight:600;">{{ $log['header'] }}</div>
+                        <div>{!! nl2br(e($log['remark'])) !!}</div>
+                        @if($log['signature'])
+                            <div class="signature-image-card" style="margin-top:10px;max-width:220px;"><img src="{{ $log['signature'] }}" alt="Viewer history signature"></div>
+                        @endif
+                    </div>
+                @empty
+                    <div class="helper-text">No viewer history yet.</div>
+                @endforelse
+            </div>
+        </div>
+    </section>
+
     <section class="panel shaded-panel landscape-panel customer-service-panel-wide" style="margin-top:20px;">
         <div class="panel-head"><h3>Customer Service Report</h3></div>
         <div class="board-section">
@@ -441,6 +495,9 @@
                     <div class="summary-card compact-summary"><strong>Duration of Work</strong><span>{{ data_get($report, 'duration_of_work') ?: '-' }}</span></div>
                     <div class="summary-card compact-summary"><strong>Submitted At</strong><span>{{ data_get($report, 'submitted_at') ?: '-' }}</span></div>
                     <div class="summary-card compact-summary span-2"><strong>Description of Work</strong><span>{!! nl2br(e(data_get($report, 'description_of_work'))) !!}</span></div>
+        @if(!empty(data_get($report, 'description_entries', [])))
+            <div class="summary-card compact-summary span-2"><strong>Description Remark Evidence</strong><div style="display:grid;gap:12px;margin-top:10px;">@foreach(data_get($report, 'description_entries', []) as $entry)<div style="border:1px solid #dbe7f5;border-radius:12px;padding:10px 12px;background:#fff;display:grid;gap:8px;"><div><strong>{{ $entry['date_label'] ?? '-' }}</strong> • {{ $entry['time_range'] ?? '-' }} • {{ $entry['duration_label'] ?? '-' }}</div><div>{{ $entry['remark'] ?? '-' }}</div><div class="helper-text">Verify signed: {{ $entry['verify_by_signed_at_label'] ?? '-' }}</div>@if(!empty($entry['verify_by_signature']))<div class="signature-image-card" style="max-width:220px;"><img src="{{ $entry['verify_by_signature'] }}" alt="CSR verify signature"></div>@endif</div>@endforeach</div></div>
+        @endif
                     <div class="summary-card compact-summary span-2"><strong>Suggestion</strong><span>{{ data_get($report, 'suggestion_recommendation') ?: '-' }}</span></div>
                 </div>
                 @if(!empty(data_get($report, 'attachments', [])))
@@ -557,6 +614,14 @@ function bindSignaturePad(canvas) {
   canvas.parentElement.querySelector('.signature-clear')?.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); target.value=''; });
 }
 document.querySelectorAll('.signature-pad').forEach(bindSignaturePad);
+document.querySelectorAll('.subject-to-approval-toggle').forEach((toggle) => {
+    toggle.addEventListener('change', function(){
+        const slot = this.dataset.slot;
+        const wrap = document.getElementById(`manual-company-wrap-${slot}`);
+        if (wrap) { wrap.style.display = this.checked ? 'block' : 'none'; }
+    });
+});
+
 document.querySelectorAll('.quotation-amount-input').forEach((input) => {
   const sync = () => {
     const slot = input.dataset.slot;
