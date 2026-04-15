@@ -24,7 +24,7 @@
 @endphp
 <style>@media print{.no-print,.footer-bar,.topbar,.sidebar{display:none !important}.content-shell{padding:0 !important}.panel{box-shadow:none !important;border:none !important}body{background:#fff !important}}.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.24);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.compact-log-card .meta-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.compact-log-card .meta-row strong{display:block;font-size:15px}.compact-log-card .meta-row span{font-size:12px;color:#64748b}</style>
 
-<div class="page-header no-print" style="margin-bottom:16px;"><div><h1 style="margin:0;">Request Detail</h1><p class="helper-text" style="margin:6px 0 0;">Clean view with request form, inspection, daily log, and CSR evidence.</p></div><div class="action-row"><a class="btn ghost" href="{{ route('client.requests.index') }}">Back</a><a class="btn ghost" href="{{ route('client.requests.show', ['clientRequest' => $requestItem, 'print' => 1]) }}" target="_blank">Print Full Report</a></div></div>
+<div class="page-header no-print" style="margin-bottom:16px;"><div><h1 style="margin:0;">Request Detail</h1><p class="helper-text" style="margin:6px 0 0;"> </p></div><div class="action-row"><a class="btn ghost" href="{{ route('client.requests.index') }}">Back</a><a class="btn ghost" href="{{ route('client.requests.show', ['clientRequest' => $requestItem, 'print' => 1]) }}" target="_blank">Print Full Report</a></div></div>
 <section class="panel request-hero-card">
     <div class="page-header request-hero-head">
         <div>

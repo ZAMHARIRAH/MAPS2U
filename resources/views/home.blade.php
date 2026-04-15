@@ -4,7 +4,7 @@
     <div class="landing-hero-backdrop"></div>
     <div class="landing-hero-content landing-hero-shell">
         <h1>MAPS2U</h1>
-        <p class="landing-hero-subtitle">Submit your maintenance request quickly through the client flow. Admin and technician access remain available through the icons in the header.</p>
+        <p class="landing-hero-subtitle"> </p>
         <div class="landing-role-buttons landing-role-buttons-centered single-cta-wrap">
             <a class="btn accent role-cta single-role-cta" href="{{ route('client.login') }}">JOB REQUEST</a>
         </div>
@@ -16,7 +16,7 @@
         <div class="panel-head compact-head">
             <div>
                 <h3>Announcement</h3>
-                <p class="helper-text">Latest updates from MAPS2U admin.</p>
+                <p class="helper-text"> </p>
             </div>
         </div>
 

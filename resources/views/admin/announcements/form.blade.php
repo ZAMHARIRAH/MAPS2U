@@ -4,7 +4,7 @@
     <div class="page-header">
         <div>
             <h1>{{ $mode === 'create' ? 'Add' : 'Edit' }} Announcement</h1>
-            <p>This announcement will appear on the homepage and client dashboard when active.</p>
+            <p> </p>
         </div>
         <a class="btn ghost" href="{{ route('admin.announcements.index') }}">Back</a>
     </div>

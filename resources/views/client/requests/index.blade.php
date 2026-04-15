@@ -34,7 +34,7 @@
 @if($requests->where('status', \App\Models\ClientRequest::STATUS_RETURNED)->count())
     <div class="alert-card warning client-alert-banner">
         <strong>Returned request detected.</strong>
-        Technician requested resubmission for one or more jobs. Review the remark shown in the request list and resubmit the same form.
+        Technician requested resubmission for one or more jobs.
     </div>
 @endif
 
@@ -45,7 +45,7 @@
         <div class="premium-section-head">
             <div>
                 <h3>My Requests</h3>
-                <p>Track current status, urgency, technician assignment, and jump straight into resubmission or customer review.</p>
+                <p> </p>
             </div>
             <div class="table-head-badges">
                 <a class="btn accent" href="{{ route('client.requests.index', ['tab' => 'new', 'form' => 1]) }}">Add Request</a>
@@ -138,7 +138,7 @@
                             <td colspan="7">
                                 <div class="empty-state-card">
                                     <strong>No request submitted.</strong>
-                                    <p class="helper-text">Use the Add Request button above to create your first request.</p>
+                                    <p class="helper-text"> </p>
                                 </div>
                             </td>
                         </tr>
@@ -154,7 +154,7 @@
         <div class="premium-section-head">
             <div>
                 <h3>Related Job Request Forms</h3>
-                <p>These are parent jobs where the technician requested a follow-up related job. Submit from here only when you want the new request to be linked.</p>
+                <p> </p>
             </div>
             <div class="table-head-badges">
                 <span class="header-chip">Related Queue</span>
@@ -197,7 +197,7 @@
                             <td colspan="6">
                                 <div class="empty-state-card">
                                     <strong>No related job form is waiting.</strong>
-                                    <p class="helper-text">New requests created from the New Request submenu will stay independent and will not be linked automatically.</p>
+                                    <p class="helper-text"> </p>
                                 </div>
                             </td>
                         </tr>
@@ -231,19 +231,19 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Requester Information</h4>
-                        <span>Auto-filled from your profile.</span>
+                        <span> </span>
                     </div>
                 </div>
                 <div class="client-identity-grid">
                     <div class="meta-tile">
                         <span>Full Name</span>
                         <strong>{{ $user->name }}</strong>
-                        <small>Managed from profile settings.</small>
+                        <small> </small>
                     </div>
                     <div class="meta-tile">
                         <span>Phone Number</span>
                         <strong>{{ $user->phone_number }}</strong>
-                        <small>Update profile if you need to change it.</small>
+                        <small> </small>
                     </div>
                 </div>
             </div>
@@ -252,18 +252,18 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Request Setup</h4>
-                        <span>Select where and what kind of support you need.</span>
+                        <span> </span>
                     </div>
                 </div>
                 @if($isRelatedMode)
                     <div class="premium-meta-grid client-meta-grid inherited-grid">
-                        <div class="meta-tile"><span>Parent Job</span><strong>{{ $relatedSourceRequest->request_code }}</strong><small>This submission will be linked to the earlier job.</small></div>
-                        <div class="meta-tile"><span>Request Type</span><strong>{{ $relatedSourceRequest->requestType?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
-                        <div class="meta-tile"><span>{{ $user->isSsu() ? 'Request For' : 'Location' }}</span><strong>{{ $relatedSourceRequest->location?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
+                        <div class="meta-tile"><span>Parent Job</span><strong>{{ $relatedSourceRequest->request_code }}</strong><small> </small></div>
+                        <div class="meta-tile"><span>Request Type</span><strong>{{ $relatedSourceRequest->requestType?->name ?? '-' }}</strong><small> </small></div>
+                        <div class="meta-tile"><span>{{ $user->isSsu() ? 'Request For' : 'Location' }}</span><strong>{{ $relatedSourceRequest->location?->name ?? '-' }}</strong><small> </small></div>
                         @if($user->sub_role === \App\Models\User::CLIENT_HQ)
-                            <div class="meta-tile"><span>Department</span><strong>{{ $relatedSourceRequest->department?->name ?? '-' }}</strong><small>Copied from parent job.</small></div>
+                            <div class="meta-tile"><span>Department</span><strong>{{ $relatedSourceRequest->department?->name ?? '-' }}</strong><small> </small></div>
                         @endif
-                        <div class="meta-tile"><span>Task Title</span><strong>{{ $taskTitle ?: '-' }}</strong><small>Reference title from the earlier request.</small></div>
+                        <div class="meta-tile"><span>Task Title</span><strong>{{ $taskTitle ?: '-' }}</strong><small> </small></div>
                     </div>
                     <input type="hidden" name="related_source_id" value="{{ $relatedSourceRequest->id }}">
                     <input type="hidden" name="related_request_id" value="{{ $relatedSourceRequest->id }}">
@@ -311,7 +311,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Urgency Needed</h4>
-                        <span>Select the urgency level that best matches your current request.</span>
+                        <span> </span>
                     </div>
                 </div>
                 <div class="urgency-grid">
@@ -337,7 +337,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Supporting Files</h4>
-                        <span>Upload any file type needed to explain the issue clearly.</span>
+                        <span> </span>
                     </div>
                 </div>
                 <input type="file" name="attachments[]" multiple>
@@ -355,7 +355,7 @@
                 <div class="section-mini-head">
                     <div>
                         <h4>Request Questions</h4>
-                        <span>Questions below will appear after you select the request type.</span>
+                        <span> </span>
                     </div>
                 </div>
                 <div id="dynamic-questions"></div>
