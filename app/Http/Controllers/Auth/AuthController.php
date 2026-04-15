@@ -8,12 +8,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Services\Maps2uEmailService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly Maps2uEmailService $emailService)
+    {
+    }
+
     public function showAdminLogin() { return view('auth.admin-login'); }
     public function showTechnicianLogin() { return view('auth.technician-login'); }
     public function showClientLogin() { return view('auth.client-login'); }
@@ -95,13 +99,16 @@ class AuthController extends Controller
 
         $resetUrl = route('password.reset', ['email' => $user->email, 'token' => $token]);
 
-        Mail::send('emails.password-reset-link', [
-            'user' => $user,
-            'resetUrl' => $resetUrl,
-        ], function ($message) use ($user) {
-            $message->to($user->email, $user->name)
-                ->subject('MAPS2U Password Reset');
-        });
+        $this->emailService->sendView(
+            $user->email,
+            $user->name,
+            'MAPS2U Password Reset',
+            'emails.password-reset-link',
+            [
+                'user' => $user,
+                'resetUrl' => $resetUrl,
+            ],
+        );
 
         return redirect()->route('password.forgot')->with('success', 'Reset password form has been sent to your email address.');
     }

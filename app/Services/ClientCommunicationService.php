@@ -2,14 +2,15 @@
 
 namespace App\Services;
 
-use App\Mail\ClientStatusNotificationMail;
 use App\Models\ClientRequest;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class ClientCommunicationService
 {
-    public function __construct(private readonly WhatsAppService $whatsAppService)
+    public function __construct(
+        private readonly WhatsAppService $whatsAppService,
+        private readonly Maps2uEmailService $emailService,
+    )
     {
     }
 
@@ -22,14 +23,20 @@ class ClientCommunicationService
 
         if (config('maps2u_notifications.email.enabled') && $clientRequest->user?->email) {
             try {
-                Mail::to($clientRequest->user->email)->send(new ClientStatusNotificationMail(
-                    $clientRequest,
+                $this->emailService->sendView(
+                    $clientRequest->user->email,
+                    $clientRequest->user->name,
                     $payload['subject'],
-                    $payload['headline'],
-                    $payload['email_body'],
-                    $payload['cta_url'] ?? null,
-                    $payload['cta_label'] ?? null,
-                ));
+                    'emails.client-status',
+                    [
+                        'clientRequest' => $clientRequest,
+                        'subjectLine' => $payload['subject'],
+                        'headline' => $payload['headline'],
+                        'messageBody' => $payload['email_body'],
+                        'ctaUrl' => $payload['cta_url'] ?? null,
+                        'ctaLabel' => $payload['cta_label'] ?? null,
+                    ],
+                );
             } catch (\Throwable $e) {
                 Log::error('Failed to send MAPS2U email notification.', [
                     'event' => $event,

@@ -3,6 +3,7 @@
 return [
     'email' => [
         'enabled' => env('MAPS2U_EMAIL_ENABLED', false),
+        'driver' => env('MAPS2U_EMAIL_DRIVER', 'gmail_api'),
         'reply_to' => env('MAPS2U_EMAIL_REPLY_TO'),
     ],
     'whatsapp' => [

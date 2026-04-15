@@ -2,14 +2,15 @@
 
 namespace App\Services;
 
-use App\Mail\TechnicianAssignmentNotificationMail;
 use App\Models\ClientRequest;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class TechnicianCommunicationService
 {
-    public function __construct(private readonly WhatsAppService $whatsAppService)
+    public function __construct(
+        private readonly WhatsAppService $whatsAppService,
+        private readonly Maps2uEmailService $emailService,
+    )
     {
     }
 
@@ -30,15 +31,21 @@ class TechnicianCommunicationService
 
         if (config('maps2u_notifications.email.enabled') && $technician->email) {
             try {
-                Mail::to($technician->email)->send(new TechnicianAssignmentNotificationMail(
-                    $clientRequest,
-                    $technician->name ?: 'Technician',
+                $this->emailService->sendView(
+                    $technician->email,
+                    $technician->name,
                     $subject,
-                    $headline,
-                    $messageBody,
-                    $loginUrl,
-                    'Open Technician Login',
-                ));
+                    'emails.technician-assignment',
+                    [
+                        'clientRequest' => $clientRequest,
+                        'recipientName' => $technician->name ?: 'Technician',
+                        'subjectLine' => $subject,
+                        'headline' => $headline,
+                        'messageBody' => $messageBody,
+                        'ctaUrl' => $loginUrl,
+                        'ctaLabel' => 'Open Technician Login',
+                    ],
+                );
             } catch (\Throwable $e) {
                 Log::error('Failed to send MAPS2U technician assignment email.', [
                     'request_code' => $clientRequest->request_code,

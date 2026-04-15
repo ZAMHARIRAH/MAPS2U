@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'gmail_oauth' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_GMAIL_REDIRECT_URI'),
+        'scopes' => array_filter(array_map('trim', explode(',', env('GOOGLE_GMAIL_SCOPES', 'https://www.googleapis.com/auth/gmail.send')))),
+        'from' => env('GOOGLE_GMAIL_FROM'),
+        'from_name' => env('GOOGLE_GMAIL_FROM_NAME', env('MAIL_FROM_NAME', env('APP_NAME', 'MAPS2U'))),
+        'refresh_token' => env('GOOGLE_GMAIL_REFRESH_TOKEN'),
+    ],
+
 ];
