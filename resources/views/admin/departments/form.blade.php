@@ -1,7 +1,7 @@
 @extends('layouts.app', ['title' => ($mode === 'create' ? 'Add' : 'Edit') . ' Department'])
 @section('content')
 <section class="panel form-shell small-form-shell">
-    <div class="page-header"><div><h1>{{ $mode === 'create' ? 'Add' : 'Edit' }} Department</h1><p>This list will be shown to HQ Staff in the request form.</p></div><a class="btn ghost" href="{{ route('admin.departments.index') }}">Back</a></div>
+    <div class="page-header"><div><h1>{{ $mode === 'create' ? 'Add' : 'Edit' }} Department</h1><p> </p></div><a class="btn ghost" href="{{ route('admin.departments.index') }}">Back</a></div>
     <form method="POST" action="{{ $mode === 'create' ? route('admin.departments.store') : route('admin.departments.update', $department) }}">
         @csrf
         @if($mode === 'edit') @method('PUT') @endif

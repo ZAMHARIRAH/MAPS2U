@@ -70,7 +70,7 @@
 <div class="page-header no-print">
     <div>
         <h1>{{ $pageTitle ?? 'Finance Form' }}</h1>
-        <p>{{ $isViewer ? 'Viewer can only view finance forms that have already been uploaded by admin.' : 'Review the signed approved quotation together with payment receipt history below. When the final finance PDF is uploaded and submitted, this job will be marked as completed automatically.' }}</p>
+        <p>{{ $isViewer ? 'Viewer can only view finance forms that have already been uploaded by admin.' : 'Review the signed approved quotation together with payment receipt history below.' }}</p>
     </div>
     <div class="actions-inline">
         <a class="btn ghost" href="{{ route($backRoute ?? 'admin.finance.index') }}">Back</a>
@@ -102,7 +102,7 @@
         <span class="finance-code-prefix">Reference Code</span>
         <span class="finance-code-value">{{ $referenceCode }}</span>
     </div>
-    <p class="helper-text" style="margin-top:10px;">The live PDF below is prepared with the current month-year code. Use the PDF viewer controls directly for download or print if needed.</p>
+    <p class="helper-text" style="margin-top:10px;"> </p>
     <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:18px;align-items:start;margin-top:14px;">
         <div>
             <div class="finance-pdf-shell"><iframe id="finance-pdf-preview" class="finance-pdf-preview-frame finance-pdf-preview-frame-large" title="Finance PDF preview"></iframe></div>
@@ -111,8 +111,8 @@
         <div class="panel" style="margin:0;background:#fbfcfe;display:grid;gap:14px;">
             <div class="panel-head" style="margin-bottom:0;"><h3 style="margin:0;">Finance Evidence</h3></div>
             <div class="finance-preview-card">
-                <strong>Approved Quotation + Vendor Details</strong>
-                <small class="helper-text">Signed file approved by admin together with vendor info snapshot.</small>
+                <strong>Vendor Quotation Details</strong>
+                <small class="helper-text"> </small>
                 @if($quotationFile)
                     <div style="margin-top:12px;">@include('components.file-preview', ['file' => $quotationFile, 'label' => data_get($quotationFile, 'original_name', 'Approved quotation')])</div>
                 @endif
@@ -167,7 +167,7 @@
     <input type="hidden" name="reference_code" value="{{ $referenceCode }}">
     <div class="finance-upload-grid">
         <label><span>Upload Final Filled PDF</span><input type="file" name="filled_finance_pdf" accept="application/pdf" required></label>
-        <div class="helper-text" style="align-self:end;">Once you submit this uploaded final PDF, the job status will be marked as completed automatically.</div>
+        <div class="helper-text" style="align-self:end;"> </div>
     </div>
     <div class="action-row" style="margin-top:16px;"><button class="btn primary" type="submit">Submit</button></div>
 </form>
