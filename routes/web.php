@@ -61,6 +61,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/ssu', [SsuController::class, 'index'])->name('ssu.index');
     Route::get('/ssu/create', [SsuController::class, 'create'])->name('ssu.create');
     Route::post('/ssu', [SsuController::class, 'store'])->name('ssu.store');
+    Route::get('/ssu/{ssu}', [SsuController::class, 'show'])->name('ssu.show');
+    Route::get('/ssu/{ssu}/edit', [SsuController::class, 'edit'])->name('ssu.edit');
+    Route::put('/ssu/{ssu}', [SsuController::class, 'update'])->name('ssu.update');
+    Route::delete('/ssu/{ssu}', [SsuController::class, 'destroy'])->name('ssu.destroy');
     Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
     Route::get('/vendors/create', [VendorController::class, 'create'])->name('vendors.create');
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');

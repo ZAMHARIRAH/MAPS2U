@@ -300,12 +300,16 @@ class TechnicianRequestController extends Controller
             ];
         }
 
+        $scheduleChanged = (string) optional($clientRequest->scheduled_date)?->toDateString() !== (string) $data['scheduled_date']
+            || (string) ($clientRequest->scheduled_time ?? '') !== (string) $data['scheduled_time'];
+
         $clientRequest->update([
             'payment_receipt_files' => $receiptFiles,
             'payment_receipt_history' => array_values($history),
             'payment_type' => $data['payment_type'],
             'scheduled_date' => $data['scheduled_date'],
             'scheduled_time' => $data['scheduled_time'],
+            'schedule_reminder_sent_at' => $scheduleChanged ? null : $clientRequest->schedule_reminder_sent_at,
             'status' => ClientRequest::STATUS_WORK_IN_PROGRESS,
         ]);
 
@@ -525,7 +529,9 @@ class TechnicianRequestController extends Controller
             'status' => ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW,
         ]);
 
-        return back()->with('success', 'Inspect form submitted successfully.');
+        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'feedback_required');
+
+        return back()->with('success', 'Inspect form submitted successfully and the client has been notified to complete the feedback form.');
     }
 
     public function uploadInvoice(Request $request, ClientRequest $clientRequest)
@@ -621,8 +627,6 @@ class TechnicianRequestController extends Controller
             'status' => ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW,
         ]);
 
-        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'invoice_uploaded');
-
-        return back()->with('success', 'Customer service report submitted successfully. Finance evidence is now ready and client feedback is available.');
+        return back()->with('success', 'Customer service report submitted successfully. Finance evidence is now ready.');
     }
 }

@@ -57,6 +57,9 @@ class ClientCommunicationService
         $tech = $r->assignedTechnician;
         $techName = $tech?->name ?? 'Assigned Technician';
         $techPhone = $tech?->phone_number ?? '-';
+        $scheduledDate = optional($r->scheduled_date)?->format('d M Y') ?: '-';
+        $scheduledTime = $r->scheduled_time ?: '-';
+        $feedbackUrl = url('/client/requests/' . $r->id);
         $techWhatsAppLink = $techPhone && $r->request_code
             ? 'https://wa.me/' . preg_replace('/\D+/', '', $techPhone) . '?text=' . rawurlencode('Assalamualaikum, I am contacting regarding job ' . $r->request_code)
             : null;
@@ -103,12 +106,28 @@ class ClientCommunicationService
                 'cta_label' => 'Open Client Dashboard',
             ],
             'inspection_schedule' => [
-                'subject' => 'MAPS2U: Inspection schedule - ' . $r->request_code,
-                'headline' => 'Inspection date and time have been set',
-                'email_body' => "Inspection for job {$r->request_code} is scheduled on " . optional($r->scheduled_date)?->format('d M Y') . ' at ' . ($r->scheduled_time ?: '-'),
-                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nInspection Schedule: " . optional($r->scheduled_date)?->format('d M Y') . ' ' . ($r->scheduled_time ?: '-'),
+                'subject' => 'MAPS2U: Technician schedule confirmed - ' . $r->request_code,
+                'headline' => 'Technician schedule has been set',
+                'email_body' => "Your job {$r->request_code} has been scheduled for {$scheduledDate} at {$scheduledTime}. Assigned technician: {$techName}. Contact number: {$techPhone}. Please be prepared for the scheduled visit.",
+                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nScheduled Date: {$scheduledDate}\nScheduled Time: {$scheduledTime}\nTechnician: {$techName}\nPhone: {$techPhone}" . ($techWhatsAppLink ? "\nChat technician: {$techWhatsAppLink}" : ''),
                 'cta_url' => $dashboardUrl,
                 'cta_label' => 'View Schedule',
+            ],
+            'inspection_schedule_reminder' => [
+                'subject' => "MAPS2U: Reminder for tomorrow's technician visit - {$r->request_code}",
+                'headline' => 'Reminder: technician visit is scheduled for tomorrow',
+                'email_body' => "This is a reminder that technician {$techName} will attend your job {$r->request_code} tomorrow, {$scheduledDate}, at {$scheduledTime}. Please ensure the person in charge is aware and available. Technician contact: {$techPhone}.",
+                'whatsapp_body' => "MAPS2U Reminder\nJob ID: {$r->request_code}\nTomorrow's Visit: {$scheduledDate} {$scheduledTime}\nTechnician: {$techName}\nPhone: {$techPhone}" . ($techWhatsAppLink ? "\nChat technician: {$techWhatsAppLink}" : ''),
+                'cta_url' => $dashboardUrl,
+                'cta_label' => 'Open Client Dashboard',
+            ],
+            'feedback_required' => [
+                'subject' => 'MAPS2U: Feedback form ready - ' . $r->request_code,
+                'headline' => 'Please complete your feedback form',
+                'email_body' => "Technician inspection has been submitted for job {$r->request_code}. Please log in and complete the feedback form for this job.",
+                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nThe feedback form is now ready. Please log in and submit your feedback.",
+                'cta_url' => $feedbackUrl,
+                'cta_label' => 'Open Feedback Form',
             ],
             'invoice_uploaded' => [
                 'subject' => 'MAPS2U: Feedback required - ' . $r->request_code,

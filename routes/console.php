@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\SendScheduleReminderEmails;
 use App\Services\ReportArchiveService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -11,3 +12,5 @@ Artisan::command('reports:archive-yearly {year?}', function (?int $year = null) 
 })->purpose('Archive annual branch and location report snapshots.');
 
 Schedule::command('reports:archive-yearly')->yearlyOn(12, 31, '23:55');
+
+Schedule::command('maps2u:send-schedule-reminders')->dailyAt('08:00');
