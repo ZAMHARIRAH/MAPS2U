@@ -102,11 +102,11 @@
     <div class="premium-section-head">
         <div>
             <h3>My Request Details</h3>
-            <p>Latest job activity, technician assignment, urgency level, and scheduled date in one place.</p>
+            <p>Active job activity, technician assignment, urgency level, and scheduled date in one place. Completed jobs are listed in My Requests.</p>
         </div>
         <div class="table-head-badges">
             <span class="header-chip">Live Job Tracking</span>
-            <span class="header-chip muted">Latest 12 requests</span>
+            <span class="header-chip muted">Active requests only</span>
         </div>
     </div>
 

@@ -20,6 +20,7 @@ class User extends Authenticatable
     public const CLIENT_HQ = 'hq_staff';
     public const CLIENT_KINDERGARTEN = 'kindergarten';
     public const CLIENT_SSU = 'ssu';
+    public const CLIENT_MASTER_SSU = 'master_ssu';
 
     protected $fillable = [
         'name','email','phone_number','address','role','sub_role','password','profile_photo_path','region_states'
@@ -38,15 +39,16 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool { return $this->isViewer(); }
     public function isMapsAdmin(): bool { return $this->role === self::ROLE_ADMIN && $this->sub_role === self::ADMIN_MAPS; }
     public function isAimAdmin(): bool { return $this->role === self::ROLE_ADMIN && $this->sub_role === self::ADMIN_AIM; }
-    public function isSsu(): bool { return $this->role === self::ROLE_CLIENT && $this->sub_role === self::CLIENT_SSU; }
+    public function isSsu(): bool { return $this->role === self::ROLE_CLIENT && in_array($this->sub_role, [self::CLIENT_SSU, self::CLIENT_MASTER_SSU], true); }
+    public function isMasterSsu(): bool { return $this->role === self::ROLE_CLIENT && $this->sub_role === self::CLIENT_MASTER_SSU; }
     public function canOpenMapsFinanceSupport(): bool { return $this->isAimAdmin(); }
 
     public function handledClientRoles(): array
     {
         return match ($this->sub_role) {
-            self::ADMIN_MAPS => [self::CLIENT_KINDERGARTEN, self::CLIENT_SSU],
+            self::ADMIN_MAPS => [self::CLIENT_KINDERGARTEN, self::CLIENT_SSU, self::CLIENT_MASTER_SSU],
             self::ADMIN_AIM => [self::CLIENT_HQ],
-            self::ADMIN_VIEWER, self::ADMIN_SUPER_LEGACY => [self::CLIENT_HQ, self::CLIENT_KINDERGARTEN, self::CLIENT_SSU],
+            self::ADMIN_VIEWER, self::ADMIN_SUPER_LEGACY => [self::CLIENT_HQ, self::CLIENT_KINDERGARTEN, self::CLIENT_SSU, self::CLIENT_MASTER_SSU],
             default => [],
         };
     }
@@ -64,6 +66,16 @@ class User extends Authenticatable
     public function handlesClientRole(string $role): bool
     {
         return in_array($role, $this->handledClientRoles(), true);
+    }
+
+    public function assignedBranchIds(): array
+    {
+        return collect($this->region_states ?? [])->map(fn ($value) => (int) $value)->filter()->values()->all();
+    }
+
+    public function assignedBranches()
+    {
+        return Location::whereIn('id', $this->assignedBranchIds())->orderBy('name')->get();
     }
 
     public function profilePhotoUrl(): string
@@ -94,6 +106,7 @@ class User extends Authenticatable
                 self::CLIENT_HQ => 'HQ Staff',
                 self::CLIENT_KINDERGARTEN => 'Kindergarten',
                 self::CLIENT_SSU => 'SSU',
+                self::CLIENT_MASTER_SSU => 'MASTER SSU',
                 default => 'Client',
             },
             default => ucfirst($this->role),

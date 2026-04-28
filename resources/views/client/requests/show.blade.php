@@ -1,6 +1,7 @@
 @extends('layouts.app', ['title' => 'Request Detail'])
 @section('content')
 @php
+    $monitorOnly = $monitorOnly ?? false;
     $printMode = request()->boolean('print');
     $fileUrl = function ($path) {
         return $path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null;
@@ -24,7 +25,7 @@
 @endphp
 <style>@media print{.no-print,.footer-bar,.topbar,.sidebar{display:none !important}.content-shell{padding:0 !important}.panel{box-shadow:none !important;border:none !important}body{background:#fff !important}}.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.24);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.compact-log-card .meta-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.compact-log-card .meta-row strong{display:block;font-size:15px}.compact-log-card .meta-row span{font-size:12px;color:#64748b}</style>
 
-<div class="page-header no-print" style="margin-bottom:16px;"><div><h1 style="margin:0;">Request Detail</h1><p class="helper-text" style="margin:6px 0 0;"> </p></div><div class="action-row"><a class="btn ghost" href="{{ route('client.requests.index') }}">Back</a><a class="btn ghost" href="{{ route('client.requests.show', ['clientRequest' => $requestItem, 'print' => 1]) }}" target="_blank">Print Full Report</a></div></div>
+<div class="page-header no-print" style="margin-bottom:16px;"><div><h1 style="margin:0;">Request Detail</h1><p class="helper-text" style="margin:6px 0 0;"> </p></div><div class="action-row"><a class="btn ghost" href="{{ ($monitorOnly ?? false) ? route('client.dashboard-list.index') : route('client.requests.index') }}">Back</a>@if($monitorOnly ?? false)<a class="btn ghost" href="{{ route('client.dashboard-list.show', ['clientRequest' => $requestItem, 'print' => 1]) }}" target="_blank">Print Full Report</a>@endif</div></div>
 <section class="panel request-hero-card">
     <div class="page-header request-hero-head">
         <div>
@@ -34,7 +35,7 @@
         <div class="actions-inline">
             <span class="badge {{ $requestItem->urgencyBadgeClass() }}">{{ $requestItem->urgencyLabel() }}</span>
             <span class="badge {{ $requestItem->statusBadgeClass() }}">{{ $requestItem->status }}</span>
-            <a class="btn ghost" href="{{ route('client.dashboard') }}">Back</a>
+            <a class="btn ghost" href="{{ ($monitorOnly ?? false) ? route('client.dashboard-list.index') : route('client.dashboard') }}">Back</a>
         </div>
     </div>
     <div class="overview-chip-grid">
@@ -43,6 +44,42 @@
         <div class="overview-chip"><span>Department</span><strong>{{ $requestItem->department?->name ?? '-' }}</strong><small>Selected department</small></div>
         <div class="overview-chip"><span>Schedule</span><strong>{{ optional($requestItem->scheduled_date)->format('d M Y') ?: '-' }}</strong><small>{{ $requestItem->scheduled_time ?: 'Time to be updated' }}</small></div>
     </div>
+</section>
+
+<section class="panel shaded-panel" style="margin-top:20px;">
+    <div class="panel-head"><h3>Work Order - Submitted Request Details</h3></div>
+    <div class="summary-stack">
+        <div class="summary-card compact-summary"><strong>Requester Name</strong><span>{{ $requestItem->full_name ?: ($requestItem->user?->name ?? '-') }}</span></div>
+        <div class="summary-card compact-summary"><strong>Phone Number</strong><span>{{ $requestItem->phone_number ?: ($requestItem->user?->phone_number ?? '-') }}</span></div>
+        <div class="summary-card compact-summary"><strong>Request Type</strong><span>{{ $requestItem->requestType?->name ?? '-' }}</span></div>
+        <div class="summary-card compact-summary"><strong>Urgency</strong><span>{{ $requestItem->urgencyLabel() }}</span></div>
+        <div class="summary-card compact-summary"><strong>Location</strong><span>{{ $requestItem->location?->name ?? '-' }}</span></div>
+        <div class="summary-card compact-summary"><strong>Department</strong><span>{{ $requestItem->department?->name ?? '-' }}</span></div>
+    </div>
+
+    @if($requestItem->requestType && $requestItem->requestType->questions->isNotEmpty())
+        <div class="answer-grid" style="margin-top:16px;">
+            @foreach($requestItem->requestType->questions as $question)
+                <article class="answer-card">
+                    <div class="answer-question">{!! nl2br(e($question->question_text)) !!}</div>
+                    <div class="answer-response"><p>{!! nl2br(e($requestItem->displayAnswerForQuestion($question))) !!}</p></div>
+                </article>
+            @endforeach
+        </div>
+    @else
+        <div class="alert-card info" style="margin-top:16px;">Request form question setup is not available for this migrated request. Basic job details are still shown above.</div>
+    @endif
+
+    @if(!empty($requestItem->attachments))
+        <div class="board-section" style="margin-top:16px;">
+            <div class="panel-head compact"><h4>Submitted Attachments</h4></div>
+            <div class="preview-grid two-up" style="margin-top:12px;">
+                @foreach($requestItem->attachments as $file)
+                    @include('components.file-preview', ['file' => $file, 'label' => $file['original_name'] ?? 'Submitted file'])
+                @endforeach
+            </div>
+        </div>
+    @endif
 </section>
 
 <div class="content-grid two-two" style="margin-top:20px;align-items:start;">
@@ -162,7 +199,7 @@
 </section>
 @endif
 
-@if($requestItem->status === \App\Models\ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW)
+@if(!($monitorOnly ?? false) && $requestItem->status === \App\Models\ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW)
 <section class="panel shaded-panel" style="margin-top:20px;">
     <div class="panel-head"><h3>Feedback Form</h3></div>
     <form method="POST" action="{{ route('client.requests.feedback', $requestItem) }}" class="client-feedback-form" id="feedback-form">

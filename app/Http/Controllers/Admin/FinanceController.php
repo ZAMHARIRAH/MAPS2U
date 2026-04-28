@@ -61,12 +61,16 @@ class FinanceController extends Controller
             ->get();
 
         $isViewer = $admin->isViewer();
-        $requests = $isViewer ? $allRequests : $allRequests->whereNull('finance_completed_at')->values();
+        $pendingRequests = $allRequests->whereNull('finance_completed_at')->values();
+        $completedRequests = $allRequests->whereNotNull('finance_completed_at')->values();
+        $requests = $isViewer ? $allRequests : $pendingRequests;
 
         return view('admin.finance.index', [
             'requests' => $requests,
-            'pendingCount' => $allRequests->whereNull('finance_completed_at')->count(),
-            'completedCount' => $allRequests->whereNotNull('finance_completed_at')->count(),
+            'pendingRequests' => $pendingRequests,
+            'completedRequests' => $completedRequests,
+            'pendingCount' => $pendingRequests->count(),
+            'completedCount' => $completedRequests->count(),
             'isViewer' => $isViewer,
             'mapsScope' => $mapsScope,
             'pageTitle' => $mapsScope ? 'Finance MAPS' : 'Finance',

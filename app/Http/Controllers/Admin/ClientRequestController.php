@@ -79,7 +79,7 @@ class ClientRequestController extends Controller
     {
         /** @var User $admin */
         $admin = Auth::user();
-        abort_unless(in_array($clientRequest->user->sub_role, $admin->handledClientRoles(), true), 403);
+        abort_unless(in_array($clientRequest->effectiveClientRole(), $admin->handledClientRoles(), true), 403);
 
         return view('admin.submissions.print', [
             'submission' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
@@ -90,8 +90,16 @@ class ClientRequestController extends Controller
 
     private function buildInboxQuery(Request $request, User $admin)
     {
+        $handledRoles = $admin->handledClientRoles();
+
         $query = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
-            ->whereHas('user', fn ($query) => $query->whereIn('sub_role', $admin->handledClientRoles()));
+            ->where(function ($query) use ($handledRoles) {
+                $query->whereHas('user', fn ($userQuery) => $userQuery->whereIn('sub_role', $handledRoles))
+                    ->orWhere(function ($legacyQuery) use ($handledRoles) {
+                        $legacyQuery->where('inspect_data->source', 'bulk_import')
+                            ->whereIn('inspect_data->legacy_client_role', $handledRoles);
+                    });
+            });
 
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search'));
@@ -109,7 +117,10 @@ class ClientRequestController extends Controller
             $status = (string) $request->input('status');
 
             if ($status === ClientRequest::STATUS_COMPLETED) {
-                $query->whereNotNull('finance_completed_at');
+                $query->where(function ($completedQuery) {
+                    $completedQuery->whereNotNull('finance_completed_at')
+                        ->orWhere('status', ClientRequest::STATUS_COMPLETED);
+                });
             } elseif ($status === ClientRequest::STATUS_FINANCE_PENDING) {
                 $query->whereNotNull('technician_completed_at')
                     ->whereNull('finance_completed_at')
@@ -169,7 +180,7 @@ class ClientRequestController extends Controller
     {
         /** @var User $admin */
         $admin = Auth::user();
-        abort_unless(in_array($clientRequest->user->sub_role, $admin->handledClientRoles(), true), 403);
+        abort_unless(in_array($clientRequest->effectiveClientRole(), $admin->handledClientRoles(), true), 403);
 
         return view('admin.submissions.show', [
             'submission' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
@@ -349,6 +360,68 @@ class ClientRequestController extends Controller
         $this->technicianCommunicationService->notifyAssignment($freshRequest);
 
         return back()->with('success', 'Technician assigned successfully. Technician email and WhatsApp notification have been triggered.');
+    }
+
+    public function returnToClient(Request $request, ClientRequest $clientRequest)
+    {
+        abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
+
+        $data = $request->validate([
+            'technician_return_remark' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $clientRequest->update([
+            'technician_return_remark' => $data['technician_return_remark'],
+            'status' => ClientRequest::STATUS_RETURNED,
+        ]);
+
+        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'returned_to_client');
+
+        return back()->with('success', 'Successful send request to client for resubmission.');
+    }
+
+    public function adminEditClientForm(Request $request, ClientRequest $clientRequest)
+    {
+        abort_if($request->user()?->isViewer(), 403, 'Viewer is view only.');
+
+        $data = $request->validate([
+            'urgency_level' => ['nullable', 'in:1,2,3'],
+            'request_type_id' => ['required', 'exists:request_types,id'],
+            'task_titles' => ['nullable', 'array'],
+            'task_titles.*' => ['nullable', 'string'],
+            'issue_updates' => ['nullable', 'array'],
+        ]);
+
+        $requestType = RequestType::with('questions')->findOrFail($data['request_type_id']);
+        $answers = $clientRequest->answers ?? [];
+        $taskValues = collect($data['task_titles'] ?? [])->filter(fn ($value) => trim((string) $value) !== '')->values();
+        $issueValues = collect($data['issue_updates'] ?? []);
+
+        foreach ($requestType->questions as $question) {
+            if ($question->question_type === \App\Models\RequestQuestion::TYPE_TASK_TITLE) {
+                $selected = $taskValues->shift();
+                if ($selected !== null) {
+                    $answers[$question->id] = ['value' => $selected];
+                }
+            }
+
+            if ($question->question_type === \App\Models\RequestQuestion::TYPE_REMARK) {
+                $replacement = $issueValues->get((string) $question->id);
+                if ($replacement !== null) {
+                    $answers[$question->id] = $replacement;
+                }
+            }
+        }
+
+        $clientRequest->update([
+            'request_type_id' => $requestType->id,
+            'urgency_level' => $data['urgency_level'] ?: $clientRequest->urgency_level,
+            'answers' => $answers,
+        ]);
+
+        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'admin_edited_form');
+
+        return back()->with('success', 'Client request form updated successfully.');
     }
 
     public function updateReview(Request $request, ClientRequest $clientRequest)

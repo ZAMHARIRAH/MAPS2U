@@ -223,10 +223,6 @@ class ReportController extends Controller
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->integer('location_id'));
         }
-        if ($request->filled('state')) {
-            $state = $request->string('state')->toString();
-            $query->whereHas('location', fn ($q) => $q->where('state', $state));
-        }
         if ($request->filled('status')) {
             $status = (string) $request->input('status');
 
@@ -239,6 +235,11 @@ class ReportController extends Controller
             } else {
                 $query->where('status', $status);
             }
+        }
+
+        if ($request->filled('month')) {
+            [$filterYear, $filterMonth] = explode('-', (string) $request->input('month'));
+            $query->whereYear('created_at', (int) $filterYear)->whereMonth('created_at', (int) $filterMonth);
         }
 
         if ($request->filled('date_from')) {
@@ -332,10 +333,15 @@ class ReportController extends Controller
                 return [$month => $count];
             });
 
+            $matchingAll = $items->filter(fn (ClientRequest $item) => in_array($taskName, $this->requestTaskTitles($item), true));
+
             return [
                 'task_name' => $taskName,
                 'months' => $months,
                 'total' => $months->sum(),
+                'average_month' => round($months->sum() / 12, 2),
+                'total_hours' => round($matchingAll->sum(fn (ClientRequest $item) => $this->durationHours($item)), 2),
+                'total_cost' => round($matchingAll->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2),
             ];
         })->filter(fn ($row) => $row['total'] > 0)->values();
     }
@@ -348,10 +354,15 @@ class ReportController extends Controller
                 return [$month => $count];
             });
 
+            $matchingAll = $items->where('location_id', $branch->id);
+
             return [
                 'branch' => $branch,
                 'months' => $months,
                 'total' => $months->sum(),
+                'average_month' => round($months->sum() / 12, 2),
+                'total_hours' => round($matchingAll->sum(fn (ClientRequest $item) => $this->durationHours($item)), 2),
+                'total_cost' => round($matchingAll->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2),
             ];
         })->filter(fn ($row) => $row['total'] > 0)->values();
     }
@@ -504,7 +515,7 @@ class ReportController extends Controller
         $totalJobs = $items->count();
         $totalHours = round($items->sum(fn (ClientRequest $item) => $this->durationHours($item)), 2);
         $totalCost = round($items->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2);
-        $completedItems = $items->filter(fn (ClientRequest $item) => (bool) $item->finance_completed_at)->values();
+        $completedItems = $items->filter(fn (ClientRequest $item) => $item->adminWorkflowLabel() === ClientRequest::STATUS_COMPLETED || $item->status === ClientRequest::STATUS_COMPLETED || (bool) $item->finance_completed_at)->values();
         $completedCount = max(1, $completedItems->count());
 
         return [
@@ -528,6 +539,7 @@ class ReportController extends Controller
         $selectedEntityId = $request->integer('detail_location_id') ?: $request->integer('location_id');
         $detail = $this->buildEntityDetailDataset($items, $selectedEntityId, $request->input('detail_task'));
         $combined = $this->buildCombinedEntityStatistics($items, $locations, $taskNames, $selectedYear);
+        $extended = $this->buildExtendedAnalyticsData($items, $locations, $taskNames);
         $overviewMetrics = $this->buildOverviewMetrics($items, $locations, $taskNames);
         $printSection = (string) ($request->input('print_section') ?: 'overview');
 
@@ -551,6 +563,7 @@ class ReportController extends Controller
             'monthlyEntitySummary' => $monthlyEntitySummary,
             'detail' => $detail,
             'combined' => $combined,
+            'extended' => $extended,
             'overviewMetrics' => $overviewMetrics,
             'printMode' => (bool) $request->boolean('print'),
             'printSection' => $printSection,
@@ -604,12 +617,82 @@ class ReportController extends Controller
     }
 
 
+    private function buildExtendedAnalyticsData(Collection $items, Collection $locations, Collection $taskNames): array
+    {
+        $statusOptions = collect(ClientRequest::adminVisibleStatusOptions())->values();
+
+        $taskEntityMatrix = $locations->map(function (Location $location) use ($items, $taskNames) {
+            $counts = $taskNames->mapWithKeys(function (string $taskName) use ($items, $location) {
+                return [$taskName => $items->filter(fn (ClientRequest $item) => (int) $item->location_id === (int) $location->id && in_array($taskName, $this->requestTaskTitles($item), true))->count()];
+            });
+            return ['entity' => $location, 'counts' => $counts, 'total' => $counts->sum()];
+        })->filter(fn ($row) => $row['total'] > 0)->values();
+
+        $taskCountGraph = $taskNames->map(function (string $taskName) use ($items) {
+            return ['task' => $taskName, 'count' => $items->filter(fn (ClientRequest $item) => in_array($taskName, $this->requestTaskTitles($item), true))->count()];
+        })->filter(fn ($row) => $row['count'] > 0)->values();
+
+        $taskAmountTable = $taskNames->map(function (string $taskName) use ($items) {
+            $matching = $items->filter(fn (ClientRequest $item) => in_array($taskName, $this->requestTaskTitles($item), true));
+            return ['task' => $taskName, 'amount' => round($matching->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2)];
+        })->filter(fn ($row) => $row['amount'] > 0)->values();
+
+        $entityAmountTable = $locations->map(function (Location $location) use ($items) {
+            $matching = $items->where('location_id', $location->id);
+            return ['entity' => $location, 'amount' => round($matching->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2)];
+        })->filter(fn ($row) => $row['amount'] > 0)->values();
+
+        $entityStatusMatrix = $locations->map(function (Location $location) use ($items, $statusOptions) {
+            $counts = $statusOptions->mapWithKeys(function (string $status) use ($items, $location) {
+                return [$status => $items->filter(fn (ClientRequest $item) => (int) $item->location_id === (int) $location->id && $item->adminWorkflowLabel() === $status)->count()];
+            });
+            return ['entity' => $location, 'counts' => $counts, 'total' => $counts->sum()];
+        })->filter(fn ($row) => $row['total'] > 0)->values();
+
+        $technicianGroups = $items->filter(fn (ClientRequest $item) => $item->assignedTechnician)->groupBy('assigned_technician_id');
+        $technicianCsrGraph = $technicianGroups->map(function (Collection $group) {
+            $technician = $group->first()?->assignedTechnician;
+            return ['technician' => $technician?->name ?? 'Unassigned', 'count' => $group->filter(fn (ClientRequest $item) => !empty($item->customer_service_report))->count()];
+        })->filter(fn ($row) => $row['count'] > 0)->values();
+
+        $technicianStatusMatrix = $technicianGroups->map(function (Collection $group) {
+            $technician = $group->first()?->assignedTechnician;
+            $completed = $group->filter(fn (ClientRequest $item) => $item->adminWorkflowLabel() === ClientRequest::STATUS_COMPLETED || $item->status === ClientRequest::STATUS_COMPLETED || (bool) $item->finance_completed_at)->count();
+            $pending = $group->filter(function (ClientRequest $item) {
+                if ($item->status === ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW) {
+                    return false;
+                }
+                return $item->adminWorkflowLabel() !== ClientRequest::STATUS_COMPLETED && $item->status !== ClientRequest::STATUS_COMPLETED;
+            })->count();
+            return ['technician' => $technician?->name ?? 'Unassigned', 'completed' => $completed, 'pending' => $pending, 'total' => $completed + $pending];
+        })->filter(fn ($row) => $row['total'] > 0)->values();
+
+        $entityHoursGraph = $locations->map(function (Location $location) use ($items) {
+            $matching = $items->where('location_id', $location->id);
+            return ['entity' => $location, 'hours' => round($matching->sum(fn (ClientRequest $item) => $this->durationHours($item)), 2)];
+        })->filter(fn ($row) => $row['hours'] > 0)->values();
+
+        return [
+            'taskEntityMatrix' => $taskEntityMatrix,
+            'taskCountGraph' => $taskCountGraph,
+            'taskAmountTable' => $taskAmountTable,
+            'entityAmountTable' => $entityAmountTable,
+            'taskAmountGraph' => $taskAmountTable,
+            'entityStatusMatrix' => $entityStatusMatrix,
+            'entityStatusGraph' => $entityStatusMatrix,
+            'technicianCsrGraph' => $technicianCsrGraph,
+            'technicianStatusMatrix' => $technicianStatusMatrix,
+            'entityHoursGraph' => $entityHoursGraph,
+        ];
+    }
+
     private function normalizeArchivePayload(ReportArchive $archive, string $title, string $entityLabel, string $routeName): array
     {
         $payload = $archive->payload ?? [];
         $months = collect($payload['months'] ?? collect(range(1, 12))->mapWithKeys(fn ($month) => [$month => Carbon::create(null, $month, 1)->format('M')])->all());
         $detail = $payload['detail'] ?? ['rows' => [], 'jobs' => [], 'summary' => ['total_jobs' => 0, 'total_hours' => 0, 'total_cost' => 0], 'selectedBranch' => null, 'selectedTask' => null];
         $combined = $payload['combined'] ?? ['taskBranchMatrix' => [], 'branchPerformance' => [], 'taskTrend' => []];
+        $extended = $payload['extended'] ?? ['taskEntityMatrix' => [], 'taskCountGraph' => [], 'taskAmountTable' => [], 'entityAmountTable' => [], 'taskAmountGraph' => [], 'entityStatusMatrix' => [], 'entityStatusGraph' => [], 'technicianCsrGraph' => [], 'technicianStatusMatrix' => [], 'entityHoursGraph' => []];
         $archiveYears = ReportArchive::where('report_type', $archive->report_type)->orderByDesc('archive_year')->pluck('archive_year');
 
         return [
@@ -634,6 +717,7 @@ class ReportController extends Controller
                 'branchPerformance' => collect($combined['branchPerformance'] ?? []),
                 'taskTrend' => collect($combined['taskTrend'] ?? []),
             ],
+            'extended' => collect($extended)->map(fn ($value) => collect($value))->all(),
             'overviewMetrics' => $payload['overviewMetrics'] ?? ['total_jobs' => 0, 'total_hours' => 0, 'total_cost' => 0],
             'printMode' => (bool) request()->boolean('print'),
             'printSection' => (string) (request()->input('print_section') ?: 'overview'),

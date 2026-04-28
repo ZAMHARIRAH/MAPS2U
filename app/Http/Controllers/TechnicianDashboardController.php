@@ -11,6 +11,11 @@ class TechnicianDashboardController extends Controller
     {
         $jobs = ClientRequest::with(['requestType', 'location', 'relatedRequest'])
             ->where('assigned_technician_id', Auth::id())
+            ->where(function ($query) {
+                $query->where('status', '!=', ClientRequest::STATUS_COMPLETED)
+                    ->orWhere('inspect_data->source', '!=', 'bulk_import')
+                    ->orWhereNull('inspect_data');
+            })
             ->latest()
             ->get();
 

@@ -30,7 +30,17 @@
                     <td>{{ $item->assignedTechnician?->name ?? '-' }}</td>
                     <td>{{ $item->location?->name ?? '-' }}</td>
                     <td>{{ $item->department?->name ?? '-' }}</td>
-                    <td>@if(!empty($mapsScope))@if($item->hasFinancePending() || $item->finance_completed_at)<a href="{{ route('admin.maps.finance.show', $item) }}">Open Finance</a>@else<span class="helper-text">Monitoring</span>@endif @else <a href="{{ route('admin.incoming-requests.show', $item) }}">View</a> @endif</td>
+                    <td>
+                        @if(!empty($mapsScope))
+                            @if($item->hasFinancePending() || $item->finance_completed_at)
+                                <a href="{{ route('admin.maps.finance.show', $item) }}">Open Finance</a>
+                            @else
+                                <a href="{{ route('admin.incoming-requests.show', $item) }}">View</a>
+                            @endif
+                        @else
+                            <a href="{{ route('admin.incoming-requests.show', $item) }}">View</a>
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr><td colspan="9">No requests submitted yet.</td></tr>

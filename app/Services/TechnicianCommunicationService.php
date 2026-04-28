@@ -21,7 +21,7 @@ class TechnicianCommunicationService
             return;
         }
 
-        $loginUrl = route('technician.login');
+        $loginUrl = route('home');
         $taskTitle = $clientRequest->requestType?->name ?? 'Maintenance Request';
         $locationName = $clientRequest->location?->name ?? '-';
         $clientName = $clientRequest->full_name ?: $clientRequest->user?->name ?: 'Client';

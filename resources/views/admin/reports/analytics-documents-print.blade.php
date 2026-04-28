@@ -67,46 +67,8 @@
     </section>
     @endif
 
-    @if(in_array($section, ['overview','detail'], true))
-    <section class="section">
-        <h2>{{ $entityLabel }} &amp; Task Detail</h2>
-        <p class="note">This section follows the selected date range, status, state, {{ strtolower($entityLabel) }}, and task filters.</p>
-        <table>
-            <thead><tr><th>Request Code</th><th>{{ $entityLabel }}</th><th>Task Title</th><th>Status</th><th>Submitted At</th><th>Completed At</th><th>Cost</th><th>Hours</th></tr></thead>
-            <tbody>
-                @forelse(data_get($detail, 'jobs', []) as $job)
-                    @php($jobCode = is_array($job) ? data_get($job, 'request_code') : $job->request_code)
-                    @php($jobEntity = is_array($job) ? data_get($job, 'location_name') : ($job->location?->name ?? '-'))
-                    @php($jobTask = is_array($job) ? data_get($job, 'task_title') : ($job->primaryTaskTitleName() ?? ($job->requestType?->name ?? '-')))
-                    @php($jobStatus = is_array($job) ? data_get($job, 'status') : $job->adminWorkflowLabel())
-                    @php($jobSubmitted = is_array($job) ? data_get($job, 'submitted_at') : $job->created_at?->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A'))
-                    @php($jobCompleted = is_array($job) ? data_get($job, 'completed_at') : ($job->finance_completed_at ? $job->finance_completed_at->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') : '-'))
-                    @php($jobCost = is_array($job) ? (float) data_get($job, 'cost', 0) : (is_numeric(data_get($job->approvedQuotation(), 'amount')) ? (float) data_get($job->approvedQuotation(), 'amount') : 0))
-                    @php($jobHours = is_array($job) ? (float) data_get($job, 'hours', 0) : (float) $job->reportDurationHours())
-                    <tr><td>{{ $jobCode }}</td><td>{{ $jobEntity }}</td><td>{{ $jobTask }}</td><td>{{ $jobStatus }}</td><td>{{ $jobSubmitted }}</td><td>{{ $jobCompleted }}</td><td>RM {{ number_format($jobCost, 2) }}</td><td>{{ number_format($jobHours, 2) }}</td></tr>
-                @empty
-                    <tr><td colspan="8">No request records found for this filter.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </section>
-    @endif
 
-    @if(in_array($section, ['overview','combined'], true))
-    <section class="section">
-        <h2>Combined Statistics</h2>
-        <table>
-            <thead><tr><th>Task</th>@foreach(collect(data_get($combined, 'branchPerformance', []))->take(12) as $entityRow)<th>{{ data_get($entityRow, 'entity.name') ?? data_get($entityRow, 'entity->name') }}</th>@endforeach<th>Total</th></tr></thead>
-            <tbody>
-                @forelse(data_get($combined, 'taskBranchMatrix', []) as $row)
-                    <tr><td>{{ data_get($row, 'task') }}</td>@foreach(collect(data_get($combined, 'branchPerformance', []))->take(12) as $entityRow)<td>{{ data_get($row, 'entities.' . (data_get($entityRow, 'entity.name') ?? data_get($entityRow, 'entity->name')), 0) }}</td>@endforeach<td>{{ collect(data_get($row, 'entities', []))->sum() }}</td></tr>
-                @empty
-                    <tr><td colspan="14">No matrix data available.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </section>
-    @endif
+    
 </div>
 <script>window.addEventListener('load',()=>window.print());</script>
 </body>

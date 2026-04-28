@@ -24,13 +24,13 @@ class RequestController extends Controller
 
         if ($request->filled('edit')) {
             $editingRequest = ClientRequest::with(['requestType.questions.options'])
-                ->where('user_id', $user->id)
+                ->visibleToClientEmail($user)
                 ->where('status', ClientRequest::STATUS_RETURNED)
                 ->find($request->integer('edit'));
         }
 
         $requests = ClientRequest::with(['requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
-            ->where('user_id', $user->id)
+            ->visibleToClientEmail($user)
             ->latest()
             ->get();
 
@@ -83,7 +83,7 @@ class RequestController extends Controller
 
     public function show(ClientRequest $clientRequest)
     {
-        abort_unless($clientRequest->user_id === Auth::id(), 403);
+        abort_unless($clientRequest->belongsToClient(Auth::user()), 403);
 
         return view('client.requests.show', [
             'requestItem' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
@@ -109,10 +109,6 @@ class RequestController extends Controller
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->integer('location_id'));
         }
-        if ($request->filled('state')) {
-            $state = $request->string('state')->toString();
-            $query->whereHas('location', fn ($q) => $q->where('state', $state));
-        }
         if ($request->filled('status')) {
             $status = (string) $request->input('status');
 
@@ -136,7 +132,6 @@ class RequestController extends Controller
         return view('client.reports.index', [
             'items' => $items,
             'locations' => $allowedLocations,
-            'availableStates' => collect($allowedLocations)->pluck('state')->filter()->unique()->values(),
             'filters' => $request->all(),
             'statusOptions' => ClientRequest::adminVisibleStatusOptions(),
         ]);
@@ -149,7 +144,7 @@ class RequestController extends Controller
 
     public function update(Request $request, ClientRequest $clientRequest)
     {
-        abort_unless($clientRequest->user_id === Auth::id(), 403);
+        abort_unless($clientRequest->belongsToClient(Auth::user()), 403);
         abort_unless($clientRequest->status === ClientRequest::STATUS_RETURNED, 403);
 
         return $this->saveRequest($request, $clientRequest);
@@ -157,7 +152,7 @@ class RequestController extends Controller
 
     public function submitFeedback(Request $request, ClientRequest $clientRequest)
     {
-        abort_unless($clientRequest->user_id === Auth::id(), 403);
+        abort_unless($clientRequest->belongsToClient(Auth::user()), 403);
         abort_unless($clientRequest->status === ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW, 403);
 
         if ($request->boolean('agree_all')) {
@@ -253,7 +248,7 @@ class RequestController extends Controller
         $relatedSource = null;
         if (!$clientRequest && $request->filled('related_source_id')) {
             $relatedSource = ClientRequest::with(['requestType.questions.options'])
-                ->where('user_id', $user->id)
+                ->visibleToClientEmail($user)
                 ->find($request->integer('related_source_id'));
         }
 
@@ -318,14 +313,68 @@ class RequestController extends Controller
         $query = Location::where('type', $type)
             ->where('is_active', true);
 
-        if ($user->isSsu()) {
-            $states = collect($user->region_states ?? [])->filter()->values()->all();
-            if (!empty($states)) {
-                $query->whereIn('state', $states);
+        if ($user->isSsu() && !$user->isMasterSsu()) {
+            $branchIds = $user->assignedBranchIds();
+            if (!empty($branchIds)) {
+                $query->whereIn('id', $branchIds);
+            } else {
+                $query->whereRaw('1 = 0');
             }
         }
 
         return $query->orderBy('name')->get();
+    }
+
+    public function dashboardListRequests(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        abort_unless($user->isSsu(), 403);
+
+        $query = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
+            ->where(function ($query) {
+                $query->whereHas('user', fn ($q) => $q->whereIn('sub_role', [User::CLIENT_KINDERGARTEN, User::CLIENT_SSU, User::CLIENT_MASTER_SSU]))
+                    ->orWhere(function ($or) {
+                        $or->whereNull('user_id')
+                            ->where('inspect_data->legacy_client_role', User::CLIENT_KINDERGARTEN);
+                    });
+            });
+
+        if (!$user->isMasterSsu()) {
+            $branchIds = $user->assignedBranchIds();
+            if (!empty($branchIds)) {
+                $query->whereIn('location_id', $branchIds);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        $items = $query->latest()->paginate(20)->withQueryString();
+
+        return view('client.requests.dashboard-list', [
+            'items' => $items,
+            'user' => $user,
+        ]);
+    }
+
+    public function dashboardListShow(ClientRequest $clientRequest)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        abort_unless($user->isSsu(), 403);
+        $clientSubRole = $clientRequest->user?->sub_role ?? data_get($clientRequest->inspect_data, 'legacy_client_role');
+        abort_unless(in_array($clientSubRole, [User::CLIENT_KINDERGARTEN, User::CLIENT_SSU, User::CLIENT_MASTER_SSU], true), 403);
+
+        if (!$user->isMasterSsu()) {
+            abort_unless(in_array((int) $clientRequest->location_id, $user->assignedBranchIds(), true), 403);
+        }
+
+        return view('client.requests.show', [
+            'requestItem' => $clientRequest->load(['user', 'requestType.questions.options', 'location', 'department', 'relatedRequest', 'assignedTechnician']),
+            'feedbackSections' => $this->feedbackSections(),
+            'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
+            'monitorOnly' => true,
+        ]);
     }
 
     private function feedbackSections(): array

@@ -47,7 +47,7 @@ class RequestType extends Model
             return $query->whereIn('role_scope', [self::TARGET_HQ, self::TARGET_ALL]);
         }
 
-        if ($clientSubRole === User::CLIENT_SSU) {
+        if (in_array($clientSubRole, [User::CLIENT_SSU, User::CLIENT_MASTER_SSU], true)) {
             return $query->whereIn('role_scope', [self::TARGET_SSU, self::TARGET_ALL]);
         }
 

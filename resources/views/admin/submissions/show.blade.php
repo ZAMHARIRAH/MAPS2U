@@ -2,9 +2,10 @@
 @section('content')
 @php
     $fileUrl = function ($path) {
-        return $path ? route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]) : null;
+        if (!$path) return null;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) return $path;
+        return route('files.show', ['encodedPath' => rtrim(strtr(base64_encode($path), '+/', '-_'), '=')]);
     };
-    $approved = $submission->approvedQuotation();
     $paymentHistory = collect($submission->payment_receipt_history ?? [])->values();
     if ($paymentHistory->isEmpty() && !empty($submission->payment_receipt_files)) {
         $paymentHistory = collect([[
@@ -41,6 +42,8 @@
         \App\Models\ClientRequest::STATUS_REJECTED,
     ];
     $currentWorkflowIndex = array_search($submission->status, $workflowSteps, true);
+    $taskTitleOptions = \App\Models\TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']);
+    $approved = $submission->approvedQuotation();
 @endphp
 <style>.daily-log-compact-grid{display:grid;gap:14px}.compact-log-card{padding:16px;border:1px solid rgba(148,163,184,.28);border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.05)}.daily-log-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.daily-log-card-head strong{display:block;font-size:15px}.daily-log-card-head span{font-size:12px;color:#64748b}.preview-grid.single-column{grid-template-columns:1fr}</style>
 
@@ -61,13 +64,13 @@
     </div>
 
     <div class="overview-chip-grid">
-        <div class="overview-chip"><span>Client</span><strong>{{ $submission->full_name }}</strong><small>{{ $submission->user->roleLabel() }}</small></div>
+        <div class="overview-chip"><span>Client</span><strong>{{ $submission->full_name }}</strong><small>{{ $submission->user?->roleLabel() ?? \Illuminate\Support\Str::headline(str_replace('_', ' ', $submission->effectiveClientRole() ?? '-')) }}</small></div>
         <div class="overview-chip"><span>Phone</span><strong>{{ $submission->phone_number }}</strong><small>Profile contact</small></div>
         <div class="overview-chip"><span>Location</span><strong>{{ $submission->location?->name ?? '-' }}</strong><small>Selected by client</small></div>
         <div class="overview-chip"><span>Department</span><strong>{{ $submission->department?->name ?? '-' }}</strong><small>HQ staff only</small></div>
         <div class="overview-chip"><span>Assigned Technician</span><strong>{{ $submission->assignedTechnician?->name ?? 'Not assigned' }}</strong><small>Can be changed anytime</small></div>
         <div class="overview-chip"><span>Related Job</span><strong>{{ $submission->relatedRequest?->request_code ?? '-' }}</strong><small>Parent reference</small></div>
-        <div class="overview-chip"><span>Quotation State</span><strong>{{ $submission->quotation_entries ? count($submission->quotation_entries) . ' submitted' : 'Waiting' }}</strong><small>{{ $approved ? 'Quotation ' . $submission->approved_quotation_index . ' approved' : 'No approval yet' }}</small></div>
+        <div class="overview-chip"><span>Quotation State</span><strong>{{ $submission->quotation_entries ? count($submission->quotation_entries) . ' submitted' : 'Waiting' }}</strong><small>{{ $approved ? (($approved['type'] ?? null) === 'costing' ? 'Costing form approved' : 'Quotation ' . $submission->approved_quotation_index . ' approved') : 'No approval yet' }}</small></div>
         <div class="overview-chip"><span>Customer Review</span><strong>{{ $submission->feedbackAverage() ? $submission->feedbackAverage() . ' / 5' : '-' }}</strong><small>{{ $submission->customer_review_submitted_at ? 'Feedback submitted' : 'Pending review' }}</small></div>
     </div>
 </section>
@@ -81,21 +84,7 @@
                 <article class="answer-card">
                     <div class="answer-question">{!! nl2br(e($question->question_text)) !!}</div>
                     <div class="answer-response">
-                        @if($question->question_type === 'remark')
-                            <p>{{ $answer ?: '-' }}</p>
-                        @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                            <p>{{ data_get($answer, 'value', '-') }} @if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }} @endif</p>
-                        @elseif($question->question_type === 'date_range')
-                            <p>{{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }}<br>{{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}</p>
-                        @else
-                            <ul class="mini-answer-list">
-                                @forelse(($answer ?? []) as $selected)
-                                    <li>{{ data_get($selected, 'value') }} @if(data_get($selected, 'other')) - {{ data_get($selected, 'other') }} @endif</li>
-                                @empty
-                                    <li>-</li>
-                                @endforelse
-                            </ul>
-                        @endif
+                        <p>{!! nl2br(e($submission->displayAnswerForQuestion($question))) !!}</p>
                     </div>
                 </article>
             @endforeach
@@ -118,6 +107,52 @@
                 <div>{{ $submission->technician_return_remark }}</div>
             </div>
         @endif
+        @unless(auth()->user()->isViewer())
+        <div class="board-section">
+            <div class="action-row" style="margin-bottom:12px;">
+                <button class="btn danger" type="button" onclick="toggleBlock('admin-return-form')">Return To Client</button>
+                <button class="btn ghost" type="button" onclick="toggleBlock('admin-edit-client-form')">Edit Client Form</button>
+            </div>
+            <form method="POST" action="{{ route('admin.incoming-requests.return', $submission) }}" id="admin-return-form" class="hidden-form-block" style="margin-bottom:14px;">
+                @csrf
+                <label>Return Remark</label>
+                <textarea name="technician_return_remark" placeholder="Explain what needs to be updated by the client." required>{{ old('technician_return_remark') }}</textarea>
+                <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Send To Client</button></div>
+            </form>
+
+            <form method="POST" action="{{ route('admin.incoming-requests.admin-edit', $submission) }}" id="admin-edit-client-form" class="hidden-form-block">
+                @csrf
+                @method('PUT')
+                <label>Issue</label>
+                <select name="request_type_id" required>
+                    @foreach(\App\Models\RequestType::orderBy('name')->get() as $type)
+                        <option value="{{ $type->id }}" {{ (int) $submission->request_type_id === (int) $type->id ? 'selected' : '' }}>{{ $type->name }}</option>
+                    @endforeach
+                </select>
+                <label>Urgency Level</label>
+                <select name="urgency_level">
+                    <option value="1" {{ (int) $submission->urgency_level === 1 ? 'selected' : '' }}>Low</option>
+                    <option value="2" {{ (int) $submission->urgency_level === 2 ? 'selected' : '' }}>Medium</option>
+                    <option value="3" {{ (int) $submission->urgency_level === 3 ? 'selected' : '' }}>High</option>
+                </select>
+                @foreach($submission->requestType->questions as $question)
+                    @if($question->question_type === 'task_title')
+                        <label>Task Title</label>
+                        <div class="checkbox-chip-grid">
+                            @foreach($taskTitleOptions as $taskTitleOption)
+                                <label class="inline-check"><input type="checkbox" name="task_titles[]" value="{{ $taskTitleOption->title }}" {{ in_array($taskTitleOption->title, $submission->selectedTaskTitleNames(), true) ? 'checked' : '' }}> {{ $taskTitleOption->title }}</label>
+                            @endforeach
+                        </div>
+                    @elseif($question->question_type === 'remark')
+                        <label>{{ $question->question_text }}</label>
+                        <textarea name="issue_updates[{{ $question->id }}]">{{ data_get($submission->answers, $question->id) }}</textarea>
+                    @endif
+                @endforeach
+                <div class="action-row" style="margin-top:12px;"><button class="btn primary" type="submit">Save Edit</button></div>
+            </form>
+        </div>
+        @endunless
+
     </section>
 
     <aside class="control-stack sticky-side">
@@ -366,8 +401,18 @@
                 @foreach($submission->quotation_entries as $index => $quote)
                     @php($quoteNumber = $index + 1)
                     <div class="quote-card {{ $submission->approved_quotation_index === $quoteNumber ? 'quote-card-approved' : ($submission->approved_quotation_index ? 'quote-card-muted' : '') }}">
-                        <div class="quote-head"><strong>Quotation {{ $quoteNumber }}</strong><span>{{ $quote['company_name'] ?? '-' }}</span></div>
-                        <div class="helper-text">Amount: RM {{ number_format((float) ($quote['amount'] ?? 0), 2) }}</div>
+                        <div class="quote-head"><strong>{{ ($quote['type'] ?? null) === 'costing' ? 'Costing Form' : 'Quotation ' . $quoteNumber }}</strong><span>{{ $quote['company_name'] ?? '-' }}</span></div>
+                        <div class="helper-text">{{ ($quote['type'] ?? null) === 'costing' ? 'Total Cost' : 'Amount' }}: RM {{ number_format((float) ($quote['amount'] ?? 0), 2) }}</div>
+                        @if(($quote['type'] ?? null) === 'costing' && !empty($quote['items']))
+                            <div class="summary-stack" style="margin-top:12px;">
+                                @foreach($quote['items'] as $costItem)
+                                    <div class="summary-card compact-summary">
+                                        <strong>{{ $costItem['equipment_type'] ?? '-' }}</strong>
+                                        <span>RM {{ number_format((float) ($costItem['equipment_price'] ?? 0), 2) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                         @if(!empty($quote['subject_to_approval']))
                             <div class="badge warning" style="margin-top:8px;display:inline-flex;">Subject To Approval</div>
                         @endif

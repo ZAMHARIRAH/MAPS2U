@@ -44,21 +44,7 @@
                 <article class="answer-card">
                     <div class="answer-question">{!! nl2br(e($question->question_text)) !!}</div>
                     <div class="answer-response">
-                        @if($question->question_type === 'remark')
-                            <p>{{ $answer ?: '-' }}</p>
-                        @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                            <p>{{ data_get($answer, 'value', '-') }} @if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }} @endif</p>
-                        @elseif($question->question_type === 'date_range')
-                            <p>{{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }}<br>{{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}</p>
-                        @else
-                            <ul class="mini-answer-list">
-                                @forelse(($answer ?? []) as $selected)
-                                    <li>{{ data_get($selected, 'value') }} @if(data_get($selected, 'other')) - {{ data_get($selected, 'other') }} @endif</li>
-                                @empty
-                                    <li>-</li>
-                                @endforelse
-                            </ul>
-                        @endif
+                        <p>{!! nl2br(e($job->displayAnswerForQuestion($question))) !!}</p>
                     </div>
                 </article>
             @endforeach
@@ -286,13 +272,27 @@
     <section class="panel shaded-panel">
         <div class="panel-head"><h3>Approved Quotation</h3></div>
         @if($approved)
-            @include('components.file-preview', ['file' => $approved['file'] ?? [], 'label' => ($approved['company_name'] ?? 'Approved Quotation')])
+            @if(!empty(data_get($approved, 'file.path')))
+                @include('components.file-preview', ['file' => $approved['file'] ?? [], 'label' => ($approved['company_name'] ?? 'Approved Quotation')])
+            @elseif(($approved['type'] ?? null) === 'costing')
+                <div class="alert-card success">Approved costing form is ready. Costing receipts and item details are shown below.</div>
+            @endif
             <div class="summary-stack" style="margin-top:14px;">
-                <div class="summary-card compact-summary"><strong>Approved Slot</strong><span>Quotation {{ $job->approved_quotation_index }}</span></div>
-                <div class="summary-card compact-summary"><strong>Amount</strong><span>RM {{ number_format((float) ($approved['amount'] ?? 0), 2) }}</span></div>
-                <div class="summary-card compact-summary"><strong>Company</strong><span>{{ $approved['company_name'] ?? '-' }}</span></div>
+                <div class="summary-card compact-summary"><strong>Approved Type</strong><span>{{ ($approved['type'] ?? null) === 'costing' ? 'Costing Form' : 'Quotation ' . $job->approved_quotation_index }}</span></div>
+                <div class="summary-card compact-summary"><strong>{{ ($approved['type'] ?? null) === 'costing' ? 'Approved Cost' : 'Amount' }}</strong><span>RM {{ number_format((float) ($approved['amount'] ?? 0), 2) }}</span></div>
+                <div class="summary-card compact-summary"><strong>Company / Source</strong><span>{{ $approved['company_name'] ?? '-' }}</span></div>
                 @if(!empty($approved['subject_to_approval']))<div class="summary-card compact-summary"><strong>Mode</strong><span>Subject To Approval</span></div>@endif
             </div>
+            @if(($approved['type'] ?? null) === 'costing' && !empty($approved['items']))
+                <div class="summary-stack" style="margin-top:12px;">
+                    @foreach($approved['items'] as $costItem)
+                        <div class="summary-card compact-summary">
+                            <strong>{{ $costItem['equipment_type'] ?? '-' }}</strong>
+                            <span>RM {{ number_format((float) ($costItem['equipment_price'] ?? 0), 2) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
             @if(!empty($approved['summary_files']))
                 <div class="board-section" style="margin-top:12px;">
                     <div class="panel-head compact"><h4>Supporting Files</h4></div>
@@ -311,7 +311,7 @@
     <section class="panel shaded-panel">
         <div class="panel-head"><h3>Payment / Receipt / Schedule</h3></div>
         @if($approved)
-            @if($job->scheduled_date || $job->payment_type)
+            @if($job->payment_type || !empty($job->payment_receipt_history) || !empty($job->payment_receipt_files) || $job->scheduled_date)
                 <div class="summary-stack">
                     <div class="summary-card compact-summary"><strong>Payment Type</strong><span>{{ $job->payment_type ? ucfirst(str_replace('_', ' ', $job->payment_type)) : '-' }}</span></div>
                     <div class="summary-card compact-summary"><strong>Schedule</strong><span>{{ optional($job->scheduled_date)->format('d M Y') ?: '-' }} {{ $job->scheduled_time ?: '' }}</span></div>

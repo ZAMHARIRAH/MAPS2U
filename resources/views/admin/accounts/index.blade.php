@@ -8,7 +8,7 @@
     </div>
     <div class="panel" style="margin:0;">
         <div class="panel-head"><h3>SSU Accounts</h3><a class="btn primary small" href="{{ route('admin.ssu.create') }}">Add SSU</a></div>
-        <table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Region</th></tr></thead><tbody>@forelse($ssuAccounts as $ssu)<tr><td>{{ $ssu->name }}</td><td>{{ $ssu->email }}</td><td>{{ $ssu->phone_number }}</td><td>{{ collect($ssu->region_states ?? [])->join(', ') ?: '-' }}</td></tr>@empty<tr><td colspan="4">No SSU accounts found.</td></tr>@endforelse</tbody></table>
+        <table class="table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Request For</th></tr></thead><tbody>@forelse($ssuAccounts as $ssu)<tr><td>{{ $ssu->name }}</td><td>{{ $ssu->email }}</td><td>{{ $ssu->phone_number }}</td><td>{{ $ssu->isMasterSsu() ? 'All Branches' : ($ssu->assignedBranches()->pluck('name')->join(', ') ?: '-') }}</td></tr>@empty<tr><td colspan="4">No SSU accounts found.</td></tr>@endforelse</tbody></table>
     </div>
     <div class="panel" style="margin:0;">
         <div class="panel-head"><h3>Staff Accounts</h3><a class="btn primary small" href="{{ route('admin.technicians.create') }}">Add Staff</a></div>

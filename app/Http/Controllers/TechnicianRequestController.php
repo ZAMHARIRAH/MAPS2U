@@ -20,6 +20,11 @@ class TechnicianRequestController extends Controller
         return view('technician.requests.index', [
             'jobs' => ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
                 ->where('assigned_technician_id', Auth::id())
+                ->where(function ($query) {
+                    $query->where('status', '!=', ClientRequest::STATUS_COMPLETED)
+                        ->orWhere('inspect_data->source', '!=', 'bulk_import')
+                        ->orWhereNull('inspect_data');
+                })
                 ->latest()
                 ->get(),
         ]);
@@ -161,13 +166,37 @@ class TechnicianRequestController extends Controller
             ];
         }
 
+        $costingItems = collect($data['costing_items'])
+            ->map(function ($item) {
+                return [
+                    'equipment_type' => trim((string) ($item['equipment_type'] ?? '')),
+                    'equipment_price' => (float) ($item['equipment_price'] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+        $totalCost = collect($costingItems)->sum(fn ($item) => (float) ($item['equipment_price'] ?? 0));
+
         $clientRequest->update([
-            'costing_entries' => array_values($data['costing_items']),
+            'costing_entries' => $costingItems,
             'costing_receipts' => $receipts,
+            'quotation_entries' => [[
+                'slot' => 1,
+                'type' => 'costing',
+                'company_name' => 'Technician Costing Form',
+                'amount' => $totalCost,
+                'items' => $costingItems,
+                'summary_files' => $receipts,
+                'summary_report' => 'Costing form submitted by technician. Total cost: RM ' . number_format($totalCost, 2, '.', ''),
+                'file' => null,
+            ]],
+            'quotation_submitted_at' => now('Asia/Kuala_Lumpur'),
+            'quotation_return_remark' => null,
+            'approved_quotation_index' => null,
             'status' => ClientRequest::STATUS_PENDING_APPROVAL,
         ]);
 
-        return back()->with('success', 'Costing form submitted successfully.');
+        return back()->with('success', 'Costing form submitted successfully and sent to admin approval container.');
     }
 
     public function submitQuotation(Request $request, ClientRequest $clientRequest)
@@ -567,7 +596,7 @@ class TechnicianRequestController extends Controller
     public function submitCustomerService(Request $request, ClientRequest $clientRequest)
     {
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);
-        abort_unless($clientRequest->inspect_data, 422, 'Submit the inspection form before completing the customer service report.');
+        abort_unless(data_get($clientRequest->inspect_data, 'safety_checked') && data_get($clientRequest->inspect_data, 'quality_checked') && data_get($clientRequest->inspect_data, 'customer_satisfaction_checked'), 422, 'Submit the inspection form before completing the customer service report.');
         abort_if(empty($clientRequest->inspection_sessions), 422, 'Complete at least one technician log before submitting the customer service report.');
 
         $data = $request->validate([
@@ -588,20 +617,30 @@ class TechnicianRequestController extends Controller
             ];
         }
 
-        $dailyLogAttachments = collect($clientRequest->inspection_sessions ?? [])
+        $mergedSessions = collect($clientRequest->reportableInspectionSessions())->values();
+
+        $dailyLogAttachments = $mergedSessions
             ->flatMap(fn ($session) => $session['attachments'] ?? [])
             ->values()
             ->all();
 
         $submittedAt = now('Asia/Kuala_Lumpur');
+        $legacyHeldReport = data_get($clientRequest->inspect_data, 'legacy_hold_customer_service_report');
+        $legacyDescription = trim((string) data_get($legacyHeldReport, 'description_of_work', ''));
+        $currentDescription = trim((string) $clientRequest->compiledDailyLogDescription());
+        $descriptionOfWork = collect([$legacyDescription, $currentDescription])->filter()->implode("\n\n");
+
+        $durationSeconds = $mergedSessions->sum(fn ($session) => $clientRequest->inspectionSessionDurationSeconds((array) $session));
+
         $report = [
             'technician_name' => $clientRequest->assignedTechnician?->name,
             'job_id' => $clientRequest->request_code,
             'date_inspection' => $submittedAt->format('d M Y'),
-            'duration_of_work' => $clientRequest->formattedDuration($clientRequest->totalInspectionDurationSeconds()),
-            'time_history' => array_values($clientRequest->inspection_sessions ?? []),
-            'description_of_work' => $clientRequest->compiledDailyLogDescription(),
-            'description_entries' => collect($clientRequest->inspection_sessions ?? [])->map(function ($session) use ($clientRequest) {
+            'duration_seconds' => $durationSeconds,
+            'duration_of_work' => $clientRequest->formattedDuration($durationSeconds),
+            'time_history' => $mergedSessions->all(),
+            'description_of_work' => $descriptionOfWork ?: '-',
+            'description_entries' => $mergedSessions->map(function ($session) use ($clientRequest) {
                 $session = (array) $session;
                 return [
                     'date_label' => $session['date_label'] ?? null,
@@ -620,7 +659,11 @@ class TechnicianRequestController extends Controller
             'submitted_at' => $submittedAt->toDateTimeString(),
         ];
 
+        $inspectData = $clientRequest->inspect_data ?? [];
+        unset($inspectData['legacy_hold_customer_service_report'], $inspectData['legacy_hold_inspection_sessions'], $inspectData['legacy_hold_has_description']);
+
         $clientRequest->update([
+            'inspect_data' => $inspectData,
             'customer_service_report' => $report,
             'technician_completed_at' => $submittedAt,
             'invoice_uploaded_at' => $submittedAt,

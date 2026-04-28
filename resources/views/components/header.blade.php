@@ -39,10 +39,10 @@
             ];
         });
     } elseif ($user?->isClient()) {
-        $returned = \App\Models\ClientRequest::where('user_id', $user->id)
+        $returned = \App\Models\ClientRequest::visibleToClientEmail($user)
             ->where('status', \App\Models\ClientRequest::STATUS_RETURNED)
             ->latest()->take(3)->get();
-        $scheduled = \App\Models\ClientRequest::where('user_id', $user->id)
+        $scheduled = \App\Models\ClientRequest::visibleToClientEmail($user)
             ->whereNotNull('scheduled_date')
             ->latest()->take(8)->get()
             ->filter(fn ($item) => $item->upcomingScheduleDays() !== null)

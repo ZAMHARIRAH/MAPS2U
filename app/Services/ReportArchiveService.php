@@ -47,6 +47,7 @@ class ReportArchiveService
             'overviewMetrics' => $this->buildOverviewMetrics($items, $locations, $taskNames),
             'detail' => $this->buildDetail($items),
             'combined' => $this->buildCombined($items, $locations, $taskNames, $year),
+            'extended' => $this->buildExtended($items, $locations, $taskNames),
         ];
 
         return ReportArchive::updateOrCreate(
@@ -196,6 +197,62 @@ class ReportArchiveService
             'taskBranchMatrix' => $taskBranchMatrix->all(),
             'branchPerformance' => $branchPerformance->all(),
             'taskTrend' => $taskTrend->all(),
+        ];
+    }
+
+    private function buildExtended(Collection $items, Collection $locations, Collection $taskNames): array
+    {
+        $statusOptions = collect(ClientRequest::adminVisibleStatusOptions())->values();
+
+        $taskEntityMatrix = $locations->map(function (Location $location) use ($items, $taskNames) {
+            $counts = $taskNames->mapWithKeys(fn (string $taskName) => [$taskName => $items->filter(fn (ClientRequest $item) => (int) $item->location_id === (int) $location->id && in_array($taskName, $this->taskNamesForItem($item), true))->count()])->all();
+            return ['entity' => ['id' => $location->id, 'name' => $location->name], 'counts' => $counts, 'total' => collect($counts)->sum()];
+        })->filter(fn ($row) => $row['total'] > 0)->values()->all();
+
+        $taskCountGraph = $taskNames->map(fn (string $taskName) => ['task' => $taskName, 'count' => $items->filter(fn (ClientRequest $item) => in_array($taskName, $this->taskNamesForItem($item), true))->count()])->filter(fn ($row) => $row['count'] > 0)->values()->all();
+
+        $taskAmountTable = $taskNames->map(function (string $taskName) use ($items) {
+            $matching = $items->filter(fn (ClientRequest $item) => in_array($taskName, $this->taskNamesForItem($item), true));
+            return ['task' => $taskName, 'amount' => round($matching->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2)];
+        })->filter(fn ($row) => $row['amount'] > 0)->values()->all();
+
+        $entityAmountTable = $locations->map(function (Location $location) use ($items) {
+            $matching = $items->where('location_id', $location->id);
+            return ['entity' => ['id' => $location->id, 'name' => $location->name], 'amount' => round($matching->sum(fn (ClientRequest $item) => $this->approvedAmount($item)), 2)];
+        })->filter(fn ($row) => $row['amount'] > 0)->values()->all();
+
+        $entityStatusMatrix = $locations->map(function (Location $location) use ($items, $statusOptions) {
+            $counts = $statusOptions->mapWithKeys(fn (string $status) => [$status => $items->filter(fn (ClientRequest $item) => (int) $item->location_id === (int) $location->id && $item->adminWorkflowLabel() === $status)->count()])->all();
+            return ['entity' => ['id' => $location->id, 'name' => $location->name], 'counts' => $counts, 'total' => collect($counts)->sum()];
+        })->filter(fn ($row) => $row['total'] > 0)->values()->all();
+
+        $technicianGroups = $items->filter(fn (ClientRequest $item) => $item->assignedTechnician)->groupBy('assigned_technician_id');
+        $technicianCsrGraph = $technicianGroups->map(function (Collection $group) {
+            return ['technician' => $group->first()?->assignedTechnician?->name ?? 'Unassigned', 'count' => $group->filter(fn (ClientRequest $item) => !empty($item->customer_service_report))->count()];
+        })->filter(fn ($row) => $row['count'] > 0)->values()->all();
+
+        $technicianStatusMatrix = $technicianGroups->map(function (Collection $group) {
+            $completed = $group->filter(fn (ClientRequest $item) => $item->adminWorkflowLabel() === ClientRequest::STATUS_COMPLETED || $item->status === ClientRequest::STATUS_COMPLETED || (bool) $item->finance_completed_at)->count();
+            $pending = $group->filter(fn (ClientRequest $item) => $item->status !== ClientRequest::STATUS_PENDING_CUSTOMER_REVIEW && $item->adminWorkflowLabel() !== ClientRequest::STATUS_COMPLETED && $item->status !== ClientRequest::STATUS_COMPLETED)->count();
+            return ['technician' => $group->first()?->assignedTechnician?->name ?? 'Unassigned', 'completed' => $completed, 'pending' => $pending, 'total' => $completed + $pending];
+        })->filter(fn ($row) => $row['total'] > 0)->values()->all();
+
+        $entityHoursGraph = $locations->map(function (Location $location) use ($items) {
+            $matching = $items->where('location_id', $location->id);
+            return ['entity' => ['id' => $location->id, 'name' => $location->name], 'hours' => round($matching->sum(fn (ClientRequest $item) => $this->durationHours($item)), 2)];
+        })->filter(fn ($row) => $row['hours'] > 0)->values()->all();
+
+        return [
+            'taskEntityMatrix' => $taskEntityMatrix,
+            'taskCountGraph' => $taskCountGraph,
+            'taskAmountTable' => $taskAmountTable,
+            'entityAmountTable' => $entityAmountTable,
+            'taskAmountGraph' => $taskAmountTable,
+            'entityStatusMatrix' => $entityStatusMatrix,
+            'entityStatusGraph' => $entityStatusMatrix,
+            'technicianCsrGraph' => $technicianCsrGraph,
+            'technicianStatusMatrix' => $technicianStatusMatrix,
+            'entityHoursGraph' => $entityHoursGraph,
         ];
     }
 

@@ -93,21 +93,9 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
                         <div class="row"><strong>Department</strong><span>{{ $item->department?->name ?? '-' }}</span></div>
                         <div class="row"><strong>Urgency Level</strong><span>{{ $item->urgencyLabel() }}</span></div>
                         @foreach(($item->requestType->questions ?? []) as $question)
-                            @php($answer = $item->answers[$question->id] ?? null)
                             <div class="row">
                                 <strong>{{ $question->question_text }}</strong>
-                                <div>
-                                    @if($question->question_type === 'remark')
-                                        {{ $answer ?: '-' }}
-                                    @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                                        {{ data_get($answer, 'value', '-') }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
-                                    @elseif($question->question_type === 'date_range')
-                                        {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
-                                    @else
-                                        @php($itemsText = collect($answer ?? [])->map(fn ($selected) => trim((data_get($selected, 'value') ?? '-') . (data_get($selected, 'other') ? ' - ' . data_get($selected, 'other') : '')))->implode(', '))
-                                        {{ $itemsText ?: '-' }}
-                                    @endif
-                                </div>
+                                <div>{!! nl2br(e($item->displayAnswerForQuestion($question))) !!}</div>
                             </div>
                         @endforeach
                         @if($clientFiles->isNotEmpty())

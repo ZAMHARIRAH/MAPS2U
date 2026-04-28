@@ -9,7 +9,7 @@
                 <tr>
                     <td>{{ $task->title }}</td>
                     <td><span class="badge {{ $task->is_active ? 'success' : 'neutral' }}">{{ $task->is_active ? 'Active' : 'Inactive' }}</span></td>
-                    <td class="actions-inline"><a href="{{ route('admin.tasks.edit', $task) }}">Edit</a><form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" onsubmit="return confirm('Delete this task title?')">@csrf @method('DELETE')<button class="link-danger" type="submit">Delete</button></form></td>
+                    <td class="actions-inline"><a class="btn small" style="background:#1d8a52;color:#fff;" href="{{ route('admin.tasks.edit', $task) }}">Edit</a><form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" onsubmit="return confirm('Delete this task title?')">@csrf @method('DELETE')<button class="btn small danger" type="submit">Delete</button></form></td>
                 </tr>
             @empty
                 <tr><td colspan="3">No task title created yet.</td></tr>
