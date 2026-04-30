@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use App\Models\TaskTitle;
+use Illuminate\Support\Facades\DB;
 
 class ClientRequest extends Model
 {
@@ -26,6 +27,7 @@ class ClientRequest extends Model
     protected $fillable = [
         'request_code',
         'user_id',
+        'legacy_import_email',
         'assigned_technician_id',
         'request_type_id',
         'location_id',
@@ -115,17 +117,70 @@ class ClientRequest extends Model
         'technician_log_started_at' => 'datetime',
     ];
 
+    public function scopeVisibleToClientEmail($query, User $user)
+    {
+        $email = strtolower(trim((string) $user->email));
+
+        return $query->where(function ($q) use ($user, $email) {
+            $q->where('user_id', $user->id)
+                ->orWhere(function ($sub) use ($email) {
+                    $sub->whereNull('user_id')
+                        ->whereNotNull('legacy_import_email')
+                        ->whereRaw('LOWER(legacy_import_email) = ?', [$email]);
+                });
+        });
+    }
+
+    public function belongsToClient(User $user): bool
+    {
+        if ((int) $this->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return $this->user_id === null
+            && filled($this->legacy_import_email)
+            && strtolower((string) $this->legacy_import_email) === strtolower((string) $user->email);
+    }
+
     protected static function booted(): void
     {
         static::created(function (ClientRequest $clientRequest) {
             if (!$clientRequest->request_code) {
                 $clientRequest->forceFill([
-                    'request_code' => 'W' . str_pad((string) $clientRequest->id, 4, '0', STR_PAD_LEFT),
+                    'request_code' => self::consumeNextRequestCode(),
                 ])->saveQuietly();
             }
         });
     }
 
+
+    public static function consumeNextRequestCode(): string
+    {
+        return DB::transaction(function () {
+            $setting = DB::table('maps2u_settings')
+                ->where('key', 'next_job_request_code')
+                ->lockForUpdate()
+                ->first();
+
+            $current = strtoupper((string) ($setting?->value ?: 'W0001'));
+            if (!preg_match('/^([A-Z]+)(\\d+)$/', $current, $matches)) {
+                $current = 'W0001';
+                $matches = ['W0001', 'W', '0001'];
+            }
+
+            $prefix = $matches[1];
+            $number = (int) $matches[2];
+            $width = strlen($matches[2]);
+            $next = $prefix . str_pad((string) ($number + 1), $width, '0', STR_PAD_LEFT);
+
+            DB::table('maps2u_settings')->updateOrInsert(
+                ['key' => 'next_job_request_code'],
+                ['value' => $next, 'created_at' => now(), 'updated_at' => now()]
+            );
+
+            return $current;
+        });
+    }
 
     public static function adminVisibleStatusOptions(): array
     {
@@ -193,7 +248,76 @@ class ClientRequest extends Model
             return null;
         }
 
-        return collect($this->quotation_entries ?? [])->firstWhere('slot', $this->approved_quotation_index);
+        $approvedSlot = (int) $this->approved_quotation_index;
+
+        return collect($this->quotation_entries ?? [])->first(function ($entry, $index) use ($approvedSlot) {
+            return (int) ($entry['slot'] ?? ($index + 1)) === $approvedSlot;
+        });
+    }
+
+    public function approvedCostAmount(): float
+    {
+        $amount = data_get($this->approvedQuotation(), 'amount');
+
+        return is_numeric($amount) ? (float) $amount : 0.0;
+    }
+
+
+
+    public function isBulkImported(): bool
+    {
+        return data_get($this->inspect_data, 'source') === 'bulk_import';
+    }
+
+    public function effectiveClientRole(): ?string
+    {
+        if ($this->isBulkImported() && data_get($this->inspect_data, 'legacy_client_role')) {
+            return data_get($this->inspect_data, 'legacy_client_role');
+        }
+
+        return $this->user?->sub_role ?: data_get($this->inspect_data, 'legacy_client_role');
+    }
+
+    public function isCompletedForImportedHistory(): bool
+    {
+        return $this->isBulkImported() && $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function displayAnswerForQuestion($question): string
+    {
+        $answer = data_get($this->answers, $question->id);
+
+        if ($question->question_type === RequestQuestion::TYPE_REMARK) {
+            return trim((string) ($answer ?: '-')) ?: '-';
+        }
+
+        if (in_array($question->question_type, [RequestQuestion::TYPE_RADIO, RequestQuestion::TYPE_TASK_TITLE], true)) {
+            $label = trim((string) data_get($answer, 'label', ''));
+            $value = data_get($answer, 'value');
+
+            if ($question->question_type === RequestQuestion::TYPE_TASK_TITLE && $label === '' && is_numeric($value)) {
+                $label = (string) (TaskTitle::find((int) $value)?->title ?: '');
+            }
+
+            $text = $label !== '' ? $label : trim((string) ($value ?? '-'));
+            $other = trim((string) data_get($answer, 'other', ''));
+
+            return trim($text . ($other !== '' ? ' - ' . $other : '')) ?: '-';
+        }
+
+        if ($question->question_type === RequestQuestion::TYPE_DATE_RANGE) {
+            return ($question->start_label ?: 'Start Date') . ': ' . (data_get($answer, 'start') ?: '-')
+                . "\n" . ($question->end_label ?: 'End Date') . ': ' . (data_get($answer, 'end') ?: '-');
+        }
+
+        $items = collect($answer ?? [])->map(function ($selected) {
+            $label = trim((string) data_get($selected, 'label', ''));
+            $value = $label !== '' ? $label : trim((string) data_get($selected, 'value', '-'));
+            $other = trim((string) data_get($selected, 'other', ''));
+            return trim($value . ($other !== '' ? ' - ' . $other : ''));
+        })->filter()->values();
+
+        return $items->isNotEmpty() ? $items->implode("\n") : '-';
     }
 
 
@@ -358,6 +482,10 @@ class ClientRequest extends Model
 
     public function hasFinancePending(): bool
     {
+        if ($this->isBulkImported() && $this->status === self::STATUS_COMPLETED) {
+            return false;
+        }
+
         return (bool) $this->technician_completed_at && !$this->finance_completed_at && (bool) $this->approvedQuotation();
     }
 
@@ -525,12 +653,33 @@ class ClientRequest extends Model
 
     public function reportDurationSeconds(): int
     {
+        if ($this->isBulkImported()) {
+            $completeRaw = data_get($this->customer_service_report, 'legacy_duration_complete');
+            $pendingRaw = data_get($this->customer_service_report, 'legacy_duration_pending') ?: data_get($this->inspect_data, 'legacy_hold_customer_service_report.legacy_duration_pending');
+
+            $completeSeconds = $this->legacyDurationToSeconds($completeRaw);
+            $pendingSeconds = $this->legacyDurationToSeconds($pendingRaw);
+
+            if ($this->status === self::STATUS_COMPLETED && $completeSeconds !== null) {
+                return $completeSeconds;
+            }
+
+            if ($pendingSeconds !== null) {
+                $currentLogSeconds = (int) collect($this->inspection_sessions ?? [])->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
+                return $pendingSeconds + $currentLogSeconds;
+            }
+
+            if ($completeSeconds !== null) {
+                return $completeSeconds;
+            }
+        }
+
         $reportSeconds = data_get($this->customer_service_report, 'duration_seconds');
         if (is_numeric($reportSeconds) && (int) $reportSeconds > 0) {
             return (int) $reportSeconds;
         }
 
-        $inspectionSeconds = $this->totalInspectionDurationSeconds();
+        $inspectionSeconds = $this->totalReportableInspectionDurationSeconds();
         if ($inspectionSeconds > 0) {
             return $inspectionSeconds;
         }
@@ -547,6 +696,29 @@ class ClientRequest extends Model
         }
     }
 
+    protected function legacyDurationToSeconds($value): ?int
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        if (is_numeric($value)) {
+            return (int) round(((float) $value) * 60);
+        }
+        $seconds = 0;
+        if (preg_match_all('/(\d+(?:\.\d+)?)\s*(days?|d|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)/i', strtolower($value), $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $number = (float) $match[1];
+                $unit = strtolower($match[2]);
+                $seconds += in_array($unit, ['day', 'days', 'd'], true) ? (int) round($number * 86400)
+                    : (in_array($unit, ['hour', 'hours', 'hr', 'hrs', 'h'], true) ? (int) round($number * 3600)
+                    : (in_array($unit, ['minute', 'minutes', 'min', 'mins', 'm'], true) ? (int) round($number * 60) : (int) round($number)));
+            }
+            return $seconds;
+        }
+        return null;
+    }
+
     public function reportDurationHours(): float
     {
         return round($this->reportDurationSeconds() / 3600, 2);
@@ -555,6 +727,29 @@ class ClientRequest extends Model
     public function totalInspectionDurationSeconds(): int
     {
         return (int) collect($this->inspection_sessions ?? [])->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
+    }
+
+    public function legacyHeldInspectionSessions(): array
+    {
+        return collect(data_get($this->inspect_data, 'legacy_hold_inspection_sessions', []))
+            ->map(fn ($session) => (array) $session)
+            ->filter(fn ($session) => $this->inspectionSessionDurationSeconds($session) > 0)
+            ->values()
+            ->all();
+    }
+
+    public function reportableInspectionSessions(): array
+    {
+        return collect($this->legacyHeldInspectionSessions())
+            ->merge(collect($this->inspection_sessions ?? [])->map(fn ($session) => (array) $session))
+            ->values()
+            ->all();
+    }
+
+    public function totalReportableInspectionDurationSeconds(): int
+    {
+        return (int) collect($this->reportableInspectionSessions())
+            ->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
     }
 
     public function compiledDailyLogDescription(): string

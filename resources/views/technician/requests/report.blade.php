@@ -74,21 +74,9 @@ $sharedRemarks = collect($job->adminTechnicianRemarkLines());
                 <div class="row"><strong>Department</strong><span>{{ $job->department?->name ?? '-' }}</span></div>
                 <div class="row"><strong>Urgency Level</strong><span>{{ $job->urgencyLabel() }}</span></div>
                 @foreach($job->requestType->questions as $question)
-                    @php($answer = $job->answers[$question->id] ?? null)
                     <div class="row">
                         <strong>{{ $question->question_text }}</strong>
-                        <div>
-                            @if($question->question_type === 'remark')
-                                {{ $answer ?: '-' }}
-                            @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                                {{ data_get($answer, 'value', '-') }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
-                            @elseif($question->question_type === 'date_range')
-                                {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
-                            @else
-                                @php($items = collect($answer ?? [])->map(fn ($selected) => trim((data_get($selected, 'value') ?? '-') . (data_get($selected, 'other') ? ' - ' . data_get($selected, 'other') : '')))->implode(', '))
-                                {{ $items ?: '-' }}
-                            @endif
-                        </div>
+                        <div>{!! nl2br(e($job->displayAnswerForQuestion($question))) !!}</div>
                     </div>
                 @endforeach
                 @foreach($approvalRemarks as $remark)

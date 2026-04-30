@@ -14,9 +14,9 @@ class ClientDashboardController extends Controller
         $user = Auth::user();
 
         $latestRequests = ClientRequest::with(['requestType', 'relatedRequest', 'assignedTechnician', 'department', 'location'])
-            ->where('user_id', $user->id)
+            ->visibleToClientEmail($user)
+            ->where('status', '!=', ClientRequest::STATUS_COMPLETED)
             ->latest()
-            ->take(12)
             ->get();
         $relatedQueue = $latestRequests->filter(function (ClientRequest $request) {
             return data_get($request->inspect_data, 'add_related_job')
@@ -27,7 +27,8 @@ class ClientDashboardController extends Controller
             ->where('is_active', true)
             ->count();
 
-        $allRequests = ClientRequest::where('user_id', $user->id)->get();
+        $allRequests = ClientRequest::visibleToClientEmail($user)
+            ->get();
 
         $countableRequests = $allRequests->reject(fn (ClientRequest $request) => $request->status === ClientRequest::STATUS_REJECTED)->values();
 

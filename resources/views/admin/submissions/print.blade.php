@@ -54,17 +54,11 @@ $sharedRemarks = collect($submission->adminTechnicianRemarkLines());
         <section class="box">
             <h2>Client Details / Request Form</h2>
             <div class="section-list">
-                <div class="row"><strong>Role</strong><span>{{ $submission->user?->roleLabel() ?? '-' }}</span></div>
+                <div class="row"><strong>Role</strong><span>{{ $submission->user?->roleLabel() ?? \Illuminate\Support\Str::headline(str_replace('_', ' ', $submission->effectiveClientRole() ?? '-')) }}</span></div>
                 @if($submission->department)<div class="row"><strong>Department</strong><span>{{ $submission->department?->name }}</span></div>@endif
                 <div class="row"><strong>Urgency Level</strong><span>{{ $submission->urgencyLabel() }}</span></div>
                 @foreach($submission->requestType->questions as $question)
-                    @php($answer = $submission->answers[$question->id] ?? null)
-                    @php($answerText = match ($question->question_type) {
-                        'remark' => is_string($answer) ? trim($answer) : null,
-                        'radio', 'task_title' => trim((string) data_get($answer, 'value', '')) . (data_get($answer, 'other') ? ' - ' . data_get($answer, 'other') : ''),
-                        'date_range' => (data_get($answer, 'start') || data_get($answer, 'end')) ? (($question->start_label ?: 'Start Date') . ': ' . (data_get($answer, 'start') ?: '-') . ' / ' . ($question->end_label ?: 'End Date') . ': ' . (data_get($answer, 'end') ?: '-')) : null,
-                        default => collect($answer ?? [])->map(fn ($selected) => trim((string) data_get($selected, 'value', '') . (data_get($selected, 'other') ? ' - ' . data_get($selected, 'other') : '')))->filter()->implode(', '),
-                    })
+                    @php($answerText = $submission->displayAnswerForQuestion($question))
                     @if(filled($answerText))
                     <div class="row">
                         <strong>{{ $question->question_text }}</strong>

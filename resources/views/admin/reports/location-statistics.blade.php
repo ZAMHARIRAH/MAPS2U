@@ -10,7 +10,7 @@
 <div class="page-header no-print">
     <div>
         <h1>Report / {{ $title }}</h1>
-        <p>Power filter for {{ strtolower($title) }} with total jobs, task totals, approved quotation amount, and technician duration hours.</p>
+        <p> </p>
     </div>
     <div class="action-stack">
         <a class="btn ghost" href="{{ $statisticsPrintRoute }}">Print Report Statistic</a>

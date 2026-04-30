@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => ($mode === 'create' ? 'Create' : 'Edit') . ' Task'])
 @section('content')
-<div class="page-header"><div><h1>{{ $mode === 'create' ? 'Create' : 'Edit' }} Task</h1><p>Use this list for request forms and branch statistics reports.</p></div><a class="btn ghost" href="{{ route('admin.tasks.index') }}">Back</a></div>
+<div class="page-header"><div><h1>{{ $mode === 'create' ? 'Create' : 'Edit' }} Task</h1><p> </p></div><a class="btn ghost" href="{{ route('admin.tasks.index') }}">Back</a></div>
 <section class="panel" style="max-width:760px;">
     <form method="POST" action="{{ $mode === 'create' ? route('admin.tasks.store') : route('admin.tasks.update', $task) }}" class="details-grid">
         @csrf

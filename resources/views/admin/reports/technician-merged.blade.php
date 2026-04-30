@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
 </div>
 <div class="page">
     <h1 class="page-title">Merged Technician Reports</h1>
-    <p class="page-sub">Completed jobs only. Each completed job is shown as two documents in one view: technician report first, then client feedback review on the next page.</p>
+    <p class="page-sub"> </p>
     <div class="stamp-card">
         <div class="stamp-item"><strong>Admin Clicked View For Print</strong><span>{{ $viewedAt }}</span></div>
         <div class="stamp-item"><strong>Printed Documents</strong><span>{{ $items->count() }} completed job(s)</span></div>
@@ -93,21 +93,9 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
                         <div class="row"><strong>Department</strong><span>{{ $item->department?->name ?? '-' }}</span></div>
                         <div class="row"><strong>Urgency Level</strong><span>{{ $item->urgencyLabel() }}</span></div>
                         @foreach(($item->requestType->questions ?? []) as $question)
-                            @php($answer = $item->answers[$question->id] ?? null)
                             <div class="row">
                                 <strong>{{ $question->question_text }}</strong>
-                                <div>
-                                    @if($question->question_type === 'remark')
-                                        {{ $answer ?: '-' }}
-                                    @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                                        {{ data_get($answer, 'value', '-') }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
-                                    @elseif($question->question_type === 'date_range')
-                                        {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
-                                    @else
-                                        @php($itemsText = collect($answer ?? [])->map(fn ($selected) => trim((data_get($selected, 'value') ?? '-') . (data_get($selected, 'other') ? ' - ' . data_get($selected, 'other') : '')))->implode(', '))
-                                        {{ $itemsText ?: '-' }}
-                                    @endif
-                                </div>
+                                <div>{!! nl2br(e($item->displayAnswerForQuestion($question))) !!}</div>
                             </div>
                         @endforeach
                         @if($clientFiles->isNotEmpty())

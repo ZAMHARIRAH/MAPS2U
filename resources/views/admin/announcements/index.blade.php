@@ -17,6 +17,7 @@
                 <th>Priority</th>
                 <th>Status</th>
                 <th>Action</th>
+                <th>Delete</th>
             </tr>
         </thead>
         <tbody>
@@ -30,19 +31,21 @@
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="is_active" value="0">
-                            <label class="status-switch" aria-label="Toggle active status">
+                            <label class="status-switch" style="transform:scale(.82);transform-origin:left center;" aria-label="Toggle active status">
                                 <input type="checkbox" name="is_active" value="1" {{ $announcement->is_active ? 'checked' : '' }} onchange="this.form.submit()">
                                 <span class="status-switch-slider"></span>
                             </label>
-                            <span class="switch-state-label">{{ $announcement->is_active ? 'Active' : 'Inactive' }}</span>
+                            <span class="switch-state-label" style="font-size:12px;">{{ $announcement->is_active ? 'Active' : 'Inactive' }}</span>
                         </form>
                     </td>
-                    <td><a href="{{ route('admin.announcements.edit', $announcement) }}">Edit</a></td>
+                    <td><a class="btn small ghost" href="{{ route('admin.announcements.edit', $announcement) }}">Edit</a></td>
+                    <td><form method="POST" action="{{ route('admin.announcements.destroy', $announcement) }}" onsubmit="return confirm('Delete this announcement?')">@csrf @method('DELETE')<button class="btn small danger" type="submit">Delete</button></form></td>
                 </tr>
             @empty
-                <tr><td colspan="5">No announcement created yet.</td></tr>
+                <tr><td colspan="6">No announcement created yet.</td></tr>
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ $announcements->links() }}</div>
 </section>
 @endsection

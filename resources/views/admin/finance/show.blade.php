@@ -111,7 +111,7 @@
         <div class="panel" style="margin:0;background:#fbfcfe;display:grid;gap:14px;">
             <div class="panel-head" style="margin-bottom:0;"><h3 style="margin:0;">Finance Evidence</h3></div>
             <div class="finance-preview-card">
-                <strong>Vendor Quotation Details</strong>
+                <strong>{{ ($approvedQuotation['type'] ?? null) === 'costing' ? 'Approved Costing Details' : 'Vendor Quotation Details' }}</strong>
                 <small class="helper-text"> </small>
                 @if($quotationFile)
                     <div style="margin-top:12px;">@include('components.file-preview', ['file' => $quotationFile, 'label' => data_get($quotationFile, 'original_name', 'Approved quotation')])</div>
@@ -123,6 +123,16 @@
                         @endforeach
                     </div>
                 @endif
+                @if(($approvedQuotation['type'] ?? null) === 'costing' && !empty($approvedQuotation['items']))
+                    <div class="summary-stack" style="margin-top:12px;">
+                        @foreach($approvedQuotation['items'] as $costItem)
+                            <div class="summary-card compact-summary">
+                                <strong>{{ $costItem['equipment_type'] ?? '-' }}</strong>
+                                <span>RM {{ number_format((float) ($costItem['equipment_price'] ?? 0), 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
                 @if($quotationSupportingFiles->isNotEmpty())
                     <div class="preview-grid single-column" style="margin-top:12px;">
                         @foreach($quotationSupportingFiles as $file)
@@ -131,7 +141,7 @@
                     </div>
                 @endif
                 @if(!$quotationFile)
-                    <p class="helper-text" style="margin-top:10px;">No approved quotation file is available yet.</p>
+                    <p class="helper-text" style="margin-top:10px;">{{ ($approvedQuotation['type'] ?? null) === 'costing' ? 'No quotation file is required for costing form. Refer to costing item and receipt evidence.' : 'No approved quotation file is available yet.' }}</p>
                 @endif
             </div>
             <div class="finance-preview-card">

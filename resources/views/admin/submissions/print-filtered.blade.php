@@ -74,25 +74,9 @@
                         <tr><th>Status</th><td>{{ $item->adminWorkflowLabel() }}</td></tr>
                         <tr><th>Completed At</th><td>{{ $item->finance_completed_at ? $item->finance_completed_at->copy()->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') : '-' }}</td></tr>
                         @foreach(($item->requestType->questions ?? []) as $question)
-                            @php $answer = $item->answers[$question->id] ?? null; @endphp
                             <tr>
                                 <th>{{ $question->question_text }}</th>
-                                <td>
-                                    @if($question->question_type === 'remark')
-                                        {{ $answer ?: '-' }}
-                                    @elseif(in_array($question->question_type, ['radio', 'task_title'], true))
-                                        {{ data_get($answer, 'label', data_get($answer, 'value', '-')) }}@if(data_get($answer, 'other')) - {{ data_get($answer, 'other') }}@endif
-                                    @elseif($question->question_type === 'date_range')
-                                        {{ $question->start_label ?: 'Start Date' }}: {{ data_get($answer, 'start', '-') }} / {{ $question->end_label ?: 'End Date' }}: {{ data_get($answer, 'end', '-') }}
-                                    @else
-                                        @php
-                                            $itemsText = collect($answer ?? [])->map(function ($selected) {
-                                                return trim((data_get($selected, 'value') ?? '-') . (data_get($selected, 'other') ? ' - ' . data_get($selected, 'other') : ''));
-                                            })->implode(', ');
-                                        @endphp
-                                        {{ $itemsText ?: '-' }}
-                                    @endif
-                                </td>
+                                <td>{!! nl2br(e($item->displayAnswerForQuestion($question))) !!}</td>
                             </tr>
                         @endforeach
                     </tbody>

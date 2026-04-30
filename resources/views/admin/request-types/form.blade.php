@@ -5,7 +5,7 @@
     <div class="page-header builder-header">
         <div>
             <h1>{{ $mode === 'create' ? 'Create' : 'Edit' }} Request Type</h1>
-            <p>Build request questions in a cleaner step-by-step layout for MAPS2U admins.</p>
+            <p> </p>
         </div>
         <a class="btn ghost" href="{{ route('admin.request-types.index') }}">Back</a>
     </div>
@@ -16,29 +16,11 @@
             @method('PUT')
         @endif
 
-        <div class="builder-intro-grid">
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 1</span>
-                <h3>Request Overview</h3>
-                <p>Set the request title and choose which client role can access this request type, including SSU.</p>
-            </div>
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 2</span>
-                <h3>Extra Controls</h3>
-                <p>Turn on urgency or file upload requirements so the request form behaves the way you need.</p>
-            </div>
-            <div class="builder-intro-card">
-                <span class="builder-step">Step 3</span>
-                <h3>Questions Builder</h3>
-                <p>Add as many questions as needed. Use paragraph text for long instructions or detailed prompts.</p>
-            </div>
-        </div>
-
         <div class="builder-config-grid">
             <section class="builder-section builder-main-section">
                 <div class="builder-section-head">
                     <div>
-                        <span class="builder-step">Request Setup</span>
+                        <span class="builder-step"> </span>
                         <h3>Request Type Details</h3>
                     </div>
                 </div>
@@ -55,22 +37,22 @@
                             <label class="role-choice-card">
                                 <input type="radio" name="role_scope" value="hq_staff" {{ old('role_scope', $requestType->role_scope ?: 'all') === 'hq_staff' ? 'checked' : '' }}>
                                 <strong>HQ Staff</strong>
-                                <small>Visible only to HQ Staff client accounts.</small>
+                                <small> </small>
                             </label>
                             <label class="role-choice-card">
                                 <input type="radio" name="role_scope" value="kindergarten" {{ old('role_scope', $requestType->role_scope) === 'kindergarten' ? 'checked' : '' }}>
                                 <strong>Kindergarten</strong>
-                                <small>Visible only to kindergarten client accounts.</small>
+                                <small> </small>
                             </label>
                             <label class="role-choice-card">
                                 <input type="radio" name="role_scope" value="ssu" {{ old('role_scope', $requestType->role_scope) === 'ssu' ? 'checked' : '' }}>
                                 <strong>SSU</strong>
-                                <small>Visible only to SSU accounts.</small>
+                                <small> </small>
                             </label>
                             <label class="role-choice-card">
                                 <input type="radio" name="role_scope" value="all" {{ old('role_scope', $requestType->role_scope ?: 'all') === 'all' ? 'checked' : '' }}>
                                 <strong>All</strong>
-                                <small>Visible to HQ Staff, Kindergarten, and SSU.</small>
+                                <small> </small>
                             </label>
                         </div>
                     </div>
@@ -81,7 +63,7 @@
                 <section class="builder-section builder-toggle-panel">
                     <div class="builder-section-head compact">
                         <div>
-                            <span class="builder-step">Options</span>
+                            <span class="builder-step"> </span>
                             <h3>Form Controls</h3>
                         </div>
                     </div>
@@ -116,9 +98,9 @@
         <section class="builder-section question-builder-panel">
             <div class="builder-section-head">
                 <div>
-                    <span class="builder-step">Question Builder</span>
+                    <span class="builder-step"> </span>
                     <h3>Questions</h3>
-                    <p class="helper-text">Create structured questions for the selected request type.</p>
+                    <p class="helper-text"> </p>
                 </div>
                 <button class="btn secondary small" type="button" id="add-question-btn">Add Question</button>
             </div>

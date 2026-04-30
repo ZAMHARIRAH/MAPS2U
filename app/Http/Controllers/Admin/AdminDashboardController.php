@@ -29,13 +29,19 @@ class AdminDashboardController extends Controller
         $handledRoles = $mapsScope ? [User::CLIENT_KINDERGARTEN] : $admin->handledClientRoles();
 
         $requests = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
-            ->whereHas('user', fn ($query) => $query->whereIn('sub_role', $handledRoles))
+            ->where(function ($query) use ($handledRoles) {
+                $query->whereHas('user', fn ($userQuery) => $userQuery->whereIn('sub_role', $handledRoles))
+                    ->orWhere(function ($legacyQuery) use ($handledRoles) {
+                        $legacyQuery->where('inspect_data->source', 'bulk_import')
+                            ->whereIn('inspect_data->legacy_client_role', $handledRoles);
+                    });
+            })
             ->latest()
             ->get();
 
         $countableRequests = $requests->reject(fn (ClientRequest $request) => $request->status === ClientRequest::STATUS_REJECTED)->values();
-        $completedCount = $countableRequests->filter(fn (ClientRequest $request) => (bool) $request->finance_completed_at)->count();
-        $pendingCount = $countableRequests->filter(fn (ClientRequest $request) => !$request->finance_completed_at)->count();
+        $completedCount = $countableRequests->filter(fn (ClientRequest $request) => (bool) $request->finance_completed_at || $request->status === ClientRequest::STATUS_COMPLETED)->count();
+        $pendingCount = $countableRequests->filter(fn (ClientRequest $request) => !$request->finance_completed_at && $request->status !== ClientRequest::STATUS_COMPLETED)->count();
         $recentRequests = $countableRequests
             ->reject(fn (ClientRequest $request) => in_array($request->adminWorkflowLabel(), ['Completed', ClientRequest::STATUS_REJECTED], true))
             ->values();
@@ -65,9 +71,9 @@ class AdminDashboardController extends Controller
 
         return view('admin.accounts.index', [
             'admin' => $admin,
-            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->where('sub_role', '!=', User::CLIENT_SSU)->orderBy('name')->get(),
-            'ssuAccounts' => User::where('role', User::ROLE_CLIENT)->where('sub_role', User::CLIENT_SSU)->orderBy('name')->get(),
-            'technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->get(),
+            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->whereNotIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->paginate(20, ['*'], 'clients_page')->withQueryString(),
+            'ssuAccounts' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->paginate(20, ['*'], 'ssu_page')->withQueryString(),
+            'technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->paginate(20, ['*'], 'technicians_page')->withQueryString(),
         ]);
     }
 

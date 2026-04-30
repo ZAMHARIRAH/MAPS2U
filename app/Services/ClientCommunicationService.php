@@ -51,15 +51,16 @@ class ClientCommunicationService
 
     private function buildPayload(ClientRequest $r, string $event, array $context = []): ?array
     {
-        $dashboardUrl = url('/client/dashboard');
-        $requestsUrl = url('/client/requests');
+        $homeUrl = route('home');
+        $dashboardUrl = $homeUrl;
+        $requestsUrl = $homeUrl;
         $taskTitle = $this->guessTaskTitle($r);
         $tech = $r->assignedTechnician;
         $techName = $tech?->name ?? 'Assigned Technician';
         $techPhone = $tech?->phone_number ?? '-';
         $scheduledDate = optional($r->scheduled_date)?->format('d M Y') ?: '-';
         $scheduledTime = $r->scheduled_time ?: '-';
-        $feedbackUrl = url('/client/requests/' . $r->id);
+        $feedbackUrl = $homeUrl;
         $techWhatsAppLink = $techPhone && $r->request_code
             ? 'https://wa.me/' . preg_replace('/\D+/', '', $techPhone) . '?text=' . rawurlencode('Assalamualaikum, I am contacting regarding job ' . $r->request_code)
             : null;
@@ -94,6 +95,14 @@ class ClientCommunicationService
                 'headline' => 'Technician requested an update',
                 'email_body' => "Technician requested additional details for job {$r->request_code}. Please log in to the website and resubmit the request form.",
                 'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nTechnician has returned your form for update. Please submit the updated form on the website.",
+                'cta_url' => $requestsUrl,
+                'cta_label' => 'Open Request List',
+            ],
+            'admin_edited_form' => [
+                'subject' => 'MAPS2U: Admin updated your request - ' . $r->request_code,
+                'headline' => 'Your submitted form has been updated by admin',
+                'email_body' => "Admin has edited the form that you submitted for job {$r->request_code}. Please log in to review the latest details.",
+                'whatsapp_body' => "MAPS2U Notification\nJob ID: {$r->request_code}\nAdmin has edited the form that you submitted. Please log in to review the latest details.",
                 'cta_url' => $requestsUrl,
                 'cta_label' => 'Open Request List',
             ],

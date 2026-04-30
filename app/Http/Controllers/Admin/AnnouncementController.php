@@ -12,7 +12,7 @@ class AnnouncementController extends Controller
     public function index()
     {
         return view('admin.announcements.index', [
-            'announcements' => Announcement::ordered()->get(),
+            'announcements' => Announcement::ordered()->paginate(20)->withQueryString(),
         ]);
     }
 
@@ -48,6 +48,13 @@ class AnnouncementController extends Controller
         ]);
 
         return redirect()->route('admin.announcements.index')->with('success', 'Announcement updated successfully.');
+    }
+
+    public function destroy(Announcement $announcement)
+    {
+        $announcement->delete();
+
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement deleted successfully.');
     }
 
     public function toggle(Request $request, Announcement $announcement)

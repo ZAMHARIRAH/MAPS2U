@@ -15,7 +15,7 @@ class LocationController extends Controller
 
         return view('admin.locations.index', [
             'type' => $locationType,
-            'locations' => Location::where('type', $locationType)->latest()->get(),
+            'locations' => Location::where('type', $locationType)->latest()->paginate(20)->withQueryString(),
         ]);
     }
 
@@ -25,7 +25,6 @@ class LocationController extends Controller
             'type' => $type === 'hq' ? Location::TYPE_HQ : Location::TYPE_BRANCH,
             'location' => new Location(),
             'mode' => 'create',
-            'stateOptions' => Location::stateOptions(),
         ]);
     }
 
@@ -35,7 +34,6 @@ class LocationController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
-            'state' => ['required', Rule::in(Location::stateOptions())],
             'is_active' => ['nullable', 'boolean'],
         ]);
         Location::create($data + ['type' => $locationType, 'is_active' => $request->boolean('is_active', true)]);
@@ -45,7 +43,7 @@ class LocationController extends Controller
 
     public function edit(Location $location)
     {
-        return view('admin.locations.form', ['type' => $location->type, 'location' => $location, 'mode' => 'edit', 'stateOptions' => Location::stateOptions()]);
+        return view('admin.locations.form', ['type' => $location->type, 'location' => $location, 'mode' => 'edit']);
     }
 
     public function update(Request $request, Location $location)
@@ -53,7 +51,6 @@ class LocationController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
-            'state' => ['required', Rule::in(Location::stateOptions())],
             'is_active' => ['nullable', 'boolean'],
             'type' => ['required', Rule::in([Location::TYPE_HQ, Location::TYPE_BRANCH])],
         ]);

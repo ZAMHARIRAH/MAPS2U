@@ -61,7 +61,7 @@
                 <details class="nav-group" {{ request()->routeIs('admin.technicians.*') || request()->routeIs('admin.ssu.*') ? 'open' : '' }}>
                     <summary>Manage Staff</summary>
                     <div class="nav-submenu">
-                        <a href="{{ route('admin.technicians.index') }}">Manage Staff</a>
+                        <a href="{{ route('admin.technicians.index') }}">Manage Technician</a>
                         <a href="{{ route('admin.ssu.index') }}">Manage SSU</a>
                     </div>
                 </details>
@@ -70,6 +70,8 @@
                     <div class="nav-submenu">
                         <a href="{{ route('admin.incoming-requests.index') }}">All Request</a>
                         <a href="{{ route('admin.request-types.index') }}">Request Type</a>
+                        <a href="{{ route('admin.bulk-import.index') }}">Bulk Import</a>
+                        <a href="{{ route('admin.job-code-settings.edit') }}">Job Request Code</a>
                     </div>
                 </details>
                 <a href="{{ route('admin.finance.index') }}">Finance</a>
@@ -148,6 +150,7 @@
                 </div>
             </details>
             @if($user->isSsu())
+                <a href="{{ route('client.dashboard-list.index') }}">Dashboard List Request</a>
                 <a href="{{ route('client.reports.index') }}">Report</a>
             @endif
             <a href="{{ route('profile.show') }}">My Profile</a>

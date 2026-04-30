@@ -1936,3 +1936,17 @@ input,select,textarea,button{max-width:100%}
 .table-wrap,.report-table-shell{margin-top:4px}
 
 .preview-grid.two-up{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}.preview-grid.two-up .file-preview-card{margin:6px 0}.preview-grid.two-up .inline-preview-image{max-height:180px}.preview-grid.two-up .inline-preview-frame{min-height:180px}.file-preview-card .file-preview-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px}.file-preview-card strong{font-size:12px}.compact-request-shell .panel,.compact-request-shell .summary-card,.compact-request-shell .helper-card{padding:18px}.compact-request-shell .content-grid.two,.compact-request-shell .content-grid.tri,.compact-request-shell .content-grid.two-two{gap:14px}.compact-request-shell .page-header{margin-bottom:14px}.compact-request-shell .panel + .panel{margin-top:14px}
+
+/* Fix technician/request tables: keep first-column TD as a real table cell so row borders span full width */
+.inbox-table td.table-primary-cell,
+.technician-table-clean td.table-primary-cell,
+.job-log-table-clean td.table-primary-cell{
+    display:table-cell!important;
+    border-bottom:1px solid #d7dde8!important;
+}
+.inbox-table td.table-primary-cell > *,
+.technician-table-clean td.table-primary-cell > *,
+.job-log-table-clean td.table-primary-cell > *{
+    display:inline-flex;
+    align-items:center;
+}

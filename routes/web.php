@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ClientAccountController;
 use App\Http\Controllers\Admin\ClientRequestController;
+use App\Http\Controllers\Admin\BulkImportController;
+use App\Http\Controllers\Admin\JobCodeSettingController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\LocationController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TechnicianDashboardController;
 use App\Http\Controllers\TechnicianRequestController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -44,6 +47,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->get('/files/{encodedPath}', [FileController::class, 'show'])->where('encodedPath', '.*')->name('files.show');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->middleware('auth')->name('notifications.open');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -81,9 +85,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::resource('departments', DepartmentController::class)->except(['show']);
     Route::resource('tasks', TaskTitleController::class)->except(['show']);
-    Route::resource('announcements', AnnouncementController::class)->except(['show', 'destroy']);
+    Route::resource('announcements', AnnouncementController::class)->except(['show']);
     Route::patch('/announcements/{announcement}/toggle', [AnnouncementController::class, 'toggle'])->name('announcements.toggle');
     Route::resource('request-types', RequestTypeController::class);
+    Route::get('/bulk-import', [BulkImportController::class, 'index'])->name('bulk-import.index');
+    Route::post('/bulk-import', [BulkImportController::class, 'store'])->name('bulk-import.store');
+    Route::get('/job-code-settings', [JobCodeSettingController::class, 'edit'])->name('job-code-settings.edit');
+    Route::put('/job-code-settings', [JobCodeSettingController::class, 'update'])->name('job-code-settings.update');
     Route::get('/incoming-requests', [ClientRequestController::class, 'index'])->name('incoming-requests.index');
     Route::get('/incoming-requests/print-filtered', [ClientRequestController::class, 'filteredPrint'])->name('incoming-requests.print-filtered');
     Route::get('/incoming-requests/{clientRequest}/print', [ClientRequestController::class, 'print'])->name('incoming-requests.print');
@@ -93,7 +101,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/incoming-requests/{clientRequest}/technician-review-remark', [ClientRequestController::class, 'appendTechnicianReviewRemark'])->name('incoming-requests.technician-review-remark');
     Route::post('/incoming-requests/{clientRequest}/viewer-summary', [ClientRequestController::class, 'saveViewerSummary'])->name('incoming-requests.viewer-summary');
     Route::post('/incoming-requests/{clientRequest}/assign', [ClientRequestController::class, 'assign'])->name('incoming-requests.assign');
+    Route::post('/incoming-requests/{clientRequest}/return', [ClientRequestController::class, 'returnToClient'])->name('incoming-requests.return');
     Route::put('/incoming-requests/{clientRequest}/review', [ClientRequestController::class, 'updateReview'])->name('incoming-requests.review');
+    Route::put('/incoming-requests/{clientRequest}/admin-edit', [ClientRequestController::class, 'adminEditClientForm'])->name('incoming-requests.admin-edit');
     Route::post('/incoming-requests/{clientRequest}/approve-quotation', [ClientRequestController::class, 'approveQuotation'])->name('incoming-requests.approve-quotation');
     Route::post('/incoming-requests/{clientRequest}/return-quotation', [ClientRequestController::class, 'returnQuotation'])->name('incoming-requests.return-quotation');
 
@@ -144,4 +154,6 @@ Route::prefix('client')->name('client.')->middleware(['auth', 'role:client'])->g
     Route::put('/requests/{clientRequest}', [ClientRequestFormController::class, 'update'])->name('requests.update');
     Route::put('/requests/{clientRequest}/feedback', [ClientRequestFormController::class, 'submitFeedback'])->name('requests.feedback');
     Route::get('/reports', [ClientRequestFormController::class, 'reportIndex'])->name('reports.index');
+    Route::get('/dashboard-list-request', [ClientRequestFormController::class, 'dashboardListRequests'])->name('dashboard-list.index');
+    Route::get('/dashboard-list-request/{clientRequest}', [ClientRequestFormController::class, 'dashboardListShow'])->name('dashboard-list.show');
 });
