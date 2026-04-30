@@ -11,7 +11,7 @@ class TaskTitleController extends Controller
     public function index()
     {
         return view('admin.tasks.index', [
-            'tasks' => TaskTitle::orderBy('title')->get(),
+            'tasks' => TaskTitle::orderBy('title')->paginate(20)->withQueryString(),
         ]);
     }
 

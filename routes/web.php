@@ -23,6 +23,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TechnicianDashboardController;
 use App\Http\Controllers\TechnicianRequestController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -46,6 +47,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->get('/files/{encodedPath}', [FileController::class, 'show'])->where('encodedPath', '.*')->name('files.show');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->middleware('auth')->name('notifications.open');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');

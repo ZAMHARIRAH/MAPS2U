@@ -16,7 +16,8 @@ class SsuController extends Controller
             'ssuAccounts' => User::where('role', User::ROLE_CLIENT)
                 ->whereIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])
                 ->orderBy('name')
-                ->get(),
+                ->paginate(20)
+                ->withQueryString(),
         ]);
     }
 

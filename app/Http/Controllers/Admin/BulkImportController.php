@@ -504,7 +504,7 @@ class BulkImportController extends Controller
         }
 
         if (is_numeric($value)) {
-            return (int) round(((float) $value) * 3600);
+            return (int) round(((float) $value) * 60);
         }
 
         $lower = Str::lower($value);

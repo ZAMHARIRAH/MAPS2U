@@ -479,12 +479,15 @@
                 @endforeach
             </div>
             @if(!$submission->approved_quotation_index)
-                <form method="POST" action="{{ route('admin.incoming-requests.return-quotation', $submission) }}" style="margin-top:14px;">
-                    @csrf
-                    <label>Return to Technician</label>
-                    <textarea name="quotation_return_remark" placeholder="Explain what needs to be reworked in the quotation submission." required>{{ old('quotation_return_remark', $submission->quotation_return_remark) }}</textarea>
-                    <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Return to Technician</button></div>
-                </form>
+                <div style="margin-top:14px;">
+                    <button class="btn danger" type="button" onclick="document.getElementById('return-quotation-form').style.display='block'; this.style.display='none';">Return to Technician</button>
+                    <form id="return-quotation-form" method="POST" action="{{ route('admin.incoming-requests.return-quotation', $submission) }}" style="margin-top:14px; display:none;">
+                        @csrf
+                        <label>Return Remark</label>
+                        <textarea name="quotation_return_remark" placeholder="Explain what needs to be reworked in the quotation submission." required>{{ old('quotation_return_remark', $submission->quotation_return_remark) }}</textarea>
+                        <div class="action-row" style="margin-top:12px;"><button class="btn danger" type="submit">Submit Return Remark</button></div>
+                    </form>
+                </div>
             @endif
         @else
             <div class="alert-card info">Quotation form has not been submitted by the technician yet.</div>

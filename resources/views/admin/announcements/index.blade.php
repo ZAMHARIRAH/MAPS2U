@@ -46,5 +46,6 @@
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ $announcements->links() }}</div>
 </section>
 @endsection

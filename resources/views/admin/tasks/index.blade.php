@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => 'Manage Task'])
 @section('content')
-<div class="page-header"><div><h1>Manage Task</h1><p>Create and manage task titles that will be reused in request forms and reports.</p></div><a class="btn primary" href="{{ route('admin.tasks.create') }}">Add Task</a></div>
+<div class="page-header"><div><h1>Manage Task</h1><p> </p></div><a class="btn primary" href="{{ route('admin.tasks.create') }}">Add Task</a></div>
 <section class="panel">
     <table class="table">
         <thead><tr><th>Task Title</th><th>Status</th><th>Action</th></tr></thead>
@@ -16,5 +16,6 @@
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ $tasks->links() }}</div>
 </section>
 @endsection

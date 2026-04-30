@@ -32,7 +32,7 @@ class ClientRequestController extends Controller
 
         $query = $this->buildInboxQuery($request, $admin);
 
-        $submissions = $query->latest()->paginate(20)->withQueryString();
+        $submissions = $query->orderByRaw("COALESCE(related_request_id, id) DESC")->orderByRaw("CASE WHEN related_request_id IS NULL THEN 0 ELSE 1 END")->latest()->paginate(20)->withQueryString();
 
         $clientRole = $admin->primaryHandledClientRole();
         $locationType = $clientRole === User::CLIENT_HQ ? Location::TYPE_HQ : Location::TYPE_BRANCH;
@@ -62,7 +62,7 @@ class ClientRequestController extends Controller
     {
         /** @var User $admin */
         $admin = Auth::user();
-        $items = $this->buildInboxQuery($request, $admin)->latest()->get();
+        $items = $this->buildInboxQuery($request, $admin)->orderByRaw("COALESCE(related_request_id, id) DESC")->orderByRaw("CASE WHEN related_request_id IS NULL THEN 0 ELSE 1 END")->latest()->get();
         $statusFilter = (string) $request->input('status');
 
         return view('admin.submissions.print-filtered', [

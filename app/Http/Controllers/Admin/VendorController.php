@@ -10,7 +10,7 @@ class VendorController extends Controller
 {
     public function index()
     {
-        return view('admin.vendors.index', ['vendors' => Vendor::latest()->get()]);
+        return view('admin.vendors.index', ['vendors' => Vendor::latest()->paginate(20)->withQueryString()]);
     }
 
     public function create()

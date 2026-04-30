@@ -5,7 +5,7 @@
         <div>
             <span class="hero-kicker">Client Command Center</span>
             <h1>Client Dashboard</h1>
-            <p>Welcome back, {{ $user->name }}. Track every request, know which jobs need your attention, and jump straight into resubmission or feedback when needed.</p>
+            <p>Welcome back, {{ $user->name }}. </p>
             <div class="hero-badge-row">
                 <span class="badge accented">{{ $user->roleLabel() }}</span>
                 <span class="badge neutral">Active Request Types: {{ $requestTypeCount }}</span>
@@ -102,7 +102,7 @@
     <div class="premium-section-head">
         <div>
             <h3>My Request Details</h3>
-            <p>Active job activity, technician assignment, urgency level, and scheduled date in one place. Completed jobs are listed in My Requests.</p>
+            <p> </p>
         </div>
         <div class="table-head-badges">
             <span class="header-chip">Live Job Tracking</span>

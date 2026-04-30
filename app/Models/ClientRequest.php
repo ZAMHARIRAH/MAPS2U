@@ -653,6 +653,27 @@ class ClientRequest extends Model
 
     public function reportDurationSeconds(): int
     {
+        if ($this->isBulkImported()) {
+            $completeRaw = data_get($this->customer_service_report, 'legacy_duration_complete');
+            $pendingRaw = data_get($this->customer_service_report, 'legacy_duration_pending') ?: data_get($this->inspect_data, 'legacy_hold_customer_service_report.legacy_duration_pending');
+
+            $completeSeconds = $this->legacyDurationToSeconds($completeRaw);
+            $pendingSeconds = $this->legacyDurationToSeconds($pendingRaw);
+
+            if ($this->status === self::STATUS_COMPLETED && $completeSeconds !== null) {
+                return $completeSeconds;
+            }
+
+            if ($pendingSeconds !== null) {
+                $currentLogSeconds = (int) collect($this->inspection_sessions ?? [])->sum(fn ($session) => $this->inspectionSessionDurationSeconds((array) $session));
+                return $pendingSeconds + $currentLogSeconds;
+            }
+
+            if ($completeSeconds !== null) {
+                return $completeSeconds;
+            }
+        }
+
         $reportSeconds = data_get($this->customer_service_report, 'duration_seconds');
         if (is_numeric($reportSeconds) && (int) $reportSeconds > 0) {
             return (int) $reportSeconds;
@@ -673,6 +694,29 @@ class ClientRequest extends Model
         } catch (\Throwable $e) {
             return 0;
         }
+    }
+
+    protected function legacyDurationToSeconds($value): ?int
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        if (is_numeric($value)) {
+            return (int) round(((float) $value) * 60);
+        }
+        $seconds = 0;
+        if (preg_match_all('/(\d+(?:\.\d+)?)\s*(days?|d|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)/i', strtolower($value), $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $number = (float) $match[1];
+                $unit = strtolower($match[2]);
+                $seconds += in_array($unit, ['day', 'days', 'd'], true) ? (int) round($number * 86400)
+                    : (in_array($unit, ['hour', 'hours', 'hr', 'hrs', 'h'], true) ? (int) round($number * 3600)
+                    : (in_array($unit, ['minute', 'minutes', 'min', 'mins', 'm'], true) ? (int) round($number * 60) : (int) round($number)));
+            }
+            return $seconds;
+        }
+        return null;
     }
 
     public function reportDurationHours(): float

@@ -95,7 +95,7 @@
 <div class="page-header no-print">
     <div>
         <h1>Report / {{ $title }}</h1>
-        <p>{{ $isArchiveView ? 'Final archived annual snapshot stored in the system.' : 'Live dashboard for submitted requests. Use filters to narrow report data.' }}</p>
+        <p></p>
     </div>
 </div>
 
@@ -130,15 +130,15 @@
     @endif
 
     <section class="kpi-grid" id="section-overview" data-print-section="overview">
-        <article class="kpi-card"><span>Total Task Bulanan</span><strong>{{ $monthlyTaskSummary->count() }}</strong></article>
-        <article class="kpi-card"><span>Total {{ $entityLabel }} Bulanan</span><strong>{{ $monthlyEntitySummary->count() }}</strong></article>
+        <article class="kpi-card"><span>Total Monthly Task</span><strong>{{ $monthlyTaskSummary->count() }}</strong></article>
+        <article class="kpi-card"><span>Total Monthly {{ $entityLabel }} </span><strong>{{ $monthlyEntitySummary->count() }}</strong></article>
         <article class="kpi-card"><span>Total Job</span><strong>{{ $grandTotalJobs }}</strong></article>
         <article class="kpi-card"><span>Total Hours</span><strong>{{ number_format($grandTotalHours, 2) }}</strong></article>
         <article class="kpi-card"><span>Grand Total Cost</span><strong>RM {{ number_format($grandTotalCost, 2) }}</strong></article>
     </section>
 
     <section class="panel" id="section-monthly-task" data-print-section="monthly-task">
-        <div class="panel-head"><div><h3>Monthly Task Summary</h3><div class="subtle">Kekal ikut layout lama, dengan totals bulanan.</div></div><div class="panel-tools no-print"><span class="badge">Pivot</span><button class="btn small ghost" type="button" onclick="printReportSection('section-monthly-task')">Print Data</button></div></div>
+        <div class="panel-head"><div><h3>Monthly Task Summary</h3><div class="subtle">  </div></div><div class="panel-tools no-print"><span class="badge">Pivot</span><button class="btn small ghost" type="button" onclick="printReportSection('section-monthly-task')">Print Data</button></div></div>
         <div class="report-table-shell">
             <table>
                 <thead><tr><th>Task Title</th>@foreach($months as $monthNumber => $label)<th>{{ $label }}</th>@endforeach<th>Total</th><th>Average / Month</th><th>Total Hours</th><th>Total Cost</th></tr></thead>
@@ -162,7 +162,7 @@
     </section>
 
     <section class="panel top-gap" id="section-monthly-entity" data-print-section="monthly-entity">
-        <div class="panel-head"><div><h3>Monthly {{ $entityLabel }} Summary</h3><div class="subtle">Kekal ikut layout lama, grouped by {{ strtolower($entityLabel) }}.</div></div><div class="panel-tools no-print"><span class="badge">Pivot</span><button class="btn small ghost" type="button" onclick="printReportSection('section-monthly-entity')">Print Data</button></div></div>
+        <div class="panel-head"><div><h3>Monthly {{ $entityLabel }} Summary</h3><div class="subtle">  </div></div><div class="panel-tools no-print"><span class="badge">Pivot</span><button class="btn small ghost" type="button" onclick="printReportSection('section-monthly-entity')">Print Data</button></div></div>
         <div class="report-table-shell">
             <table>
                 <thead><tr><th>{{ $entityLabel }}</th>@foreach($months as $monthNumber => $label)<th>{{ $label }}</th>@endforeach<th>Total</th><th>Average / Month</th><th>Total Hours</th><th>Total Cost</th></tr></thead>
@@ -186,7 +186,7 @@
     </section>
 
     <section class="panel top-gap" id="section-task-entity-matrix" data-print-section="task-entity-matrix">
-        <div class="panel-head"><div><h3>Task Title by {{ $entityLabel }}</h3><div class="subtle">Scalable matrix; columns auto-adjust based on available task titles.</div></div><div class="panel-tools no-print"><span class="badge">Matrix</span><button class="btn small ghost" type="button" onclick="printReportSection('section-task-entity-matrix')">Print Data</button></div></div>
+        <div class="panel-head"><div><h3>Task Title by {{ $entityLabel }}</h3><div class="subtle"> </div></div><div class="panel-tools no-print"><span class="badge">Matrix</span><button class="btn small ghost" type="button" onclick="printReportSection('section-task-entity-matrix')">Print Data</button></div></div>
         <div class="report-table-shell compact-matrix">
             <table>
                 <thead><tr><th>{{ $entityLabel }}</th>@foreach($taskNames as $taskName)<th title="{{ $taskName }}">{{ $taskName }}</th>@endforeach<th>Total</th></tr></thead>
@@ -241,7 +241,7 @@
     </section>
 
     <section class="panel top-gap" id="section-status-entity" data-print-section="status-entity">
-        <div class="panel-head"><div><h3>Status by {{ $entityLabel }}</h3><div class="subtle">Large-data table view only. Bar progress removed because {{ strtolower($entityLabel) }} records can exceed 100+.</div></div><div class="panel-tools no-print"><span class="badge">Status</span><button class="btn small ghost" type="button" onclick="printReportSection('section-status-entity')">Print Data</button></div></div>
+        <div class="panel-head"><div><h3>Status by {{ $entityLabel }}</h3><div class="subtle">  </div></div><div class="panel-tools no-print"><span class="badge">Status</span><button class="btn small ghost" type="button" onclick="printReportSection('section-status-entity')">Print Data</button></div></div>
         <div class="report-table-shell compact-matrix">
             <table>
                 <thead><tr><th>{{ $entityLabel }}</th>@foreach($statusOptions as $status)<th>{{ $status }}</th>@endforeach<th>Grand Total</th></tr></thead>
@@ -266,18 +266,18 @@
             <div class="vertical-chart">@forelse($technicianCsrGraph as $row)<div class="vbar"><strong>{{ data_get($row, 'count', 0) }}</strong><div class="bar" style="height:{{ max(4, ((int) data_get($row, 'count', 0) / $maxCsr) * 210) }}px"></div><small>{{ data_get($row, 'technician') }}</small></div>@empty<div class="compact-note">No CSR data.</div>@endforelse</div>
         </div>
         <div class="panel" id="section-technician-status" data-print-section="technician-status">
-            <div class="panel-head"><div><h3>Technician Completed vs Pending</h3><div class="subtle">Pending counts every assigned technician job not completed yet. Pending Customer Review is excluded.</div></div><div class="panel-tools no-print"><button class="btn small ghost" type="button" onclick="printReportSection('section-technician-status')">Print Data</button></div></div>
+            <div class="panel-head"><div><h3>Technician Completed vs Pending</h3><div class="subtle"> </div></div><div class="panel-tools no-print"><button class="btn small ghost" type="button" onclick="printReportSection('section-technician-status')">Print Data</button></div></div>
             <div class="report-table-shell"><table><thead><tr><th>Technician</th><th>Completed</th><th>Pending</th><th>Grand Total</th></tr></thead><tbody>@forelse($technicianStatusMatrix as $row)<tr><td>{{ data_get($row, 'technician') }}</td><td>{{ data_get($row, 'completed', 0) }}</td><td>{{ data_get($row, 'pending', 0) }}</td><td><strong>{{ data_get($row, 'total', 0) }}</strong></td></tr>@empty<tr><td colspan="4">No technician status data.</td></tr>@endforelse</tbody><tfoot><tr><th>Grand Total</th><th>{{ $technicianStatusMatrix->sum('completed') }}</th><th>{{ $technicianStatusMatrix->sum('pending') }}</th><th>{{ $technicianStatusMatrix->sum('total') }}</th></tr></tfoot></table></div>
         </div>
     </section>
 
     <section class="panel top-gap" id="section-hours-entity" data-print-section="hours-entity">
-        <div class="panel-head"><div><h3>Total Hours by {{ $entityLabel }}</h3><div class="subtle">Duration of work from CSR / technician log grouped by {{ strtolower($entityLabel) }}.</div></div><div class="panel-tools no-print"><span class="badge">Hours</span><button class="btn small ghost" type="button" onclick="printReportSection('section-hours-entity')">Print Data</button></div></div>
+        <div class="panel-head"><div><h3>Total Hours by {{ $entityLabel }}</h3><div class="subtle"> </div></div><div class="panel-tools no-print"><span class="badge">Hours</span><button class="btn small ghost" type="button" onclick="printReportSection('section-hours-entity')">Print Data</button></div></div>
         <div class="horizontal-chart hours-chart">@forelse($entityHoursGraph as $row)<div class="hbar"><span>{{ data_get($row, 'entity.name') ?? data_get($row, 'entity->name') }}</span><div class="track"><div class="fill" style="width:{{ ((float) data_get($row, 'hours', 0) / $maxEntityHours) * 100 }}%"></div></div><strong>{{ number_format((float) data_get($row, 'hours', 0), 2) }} h</strong></div>@empty<div class="compact-note">No duration data.</div>@endforelse</div>
     </section>
 
     <section class="panel top-gap" id="detail-section" data-print-section="detail-section-print" data-print-title="{{ $entityLabel }} & Task Detail - {{ $selectedDetailName }}">
-        <div class="panel-head"><div><h3>{{ $entityLabel }} &amp; Task Detail</h3><div class="subtle">Click a {{ strtolower($entityLabel) }} first, then view Task Title / Total Job / Total Hours / Total Cost / Total per Task.</div></div><div class="panel-tools no-print"><span class="badge">Detail</span><button class="btn small ghost" type="button" onclick="printReportSection('detail-section')">Print Selected {{ $entityLabel }}</button></div></div>
+        <div class="panel-head"><div><h3>{{ $entityLabel }} &amp; Task Detail</h3><div class="subtle"> </div></div><div class="panel-tools no-print"><span class="badge">Detail</span><button class="btn small ghost" type="button" onclick="printReportSection('detail-section')">Print Selected {{ $entityLabel }}</button></div></div>
         <div class="print-detail-title">{{ $entityLabel }}: {{ $selectedDetailName }}</div>
         <div class="detail-grid">
             <div class="detail-selector">

@@ -21,7 +21,14 @@ class ReportController extends Controller
     {
         $admin = Auth::user();
         $query = ClientRequest::with(['user', 'location', 'department', 'requestType'])
-            ->whereHas('user', fn ($q) => $q->whereIn('sub_role', $admin->handledClientRoles()));
+            ->where(function ($q) use ($admin) {
+                $roles = $admin->handledClientRoles();
+                $q->whereHas('user', fn ($userQuery) => $userQuery->whereIn('sub_role', $roles))
+                    ->orWhere(function ($legacyQuery) use ($roles) {
+                        $legacyQuery->where('inspect_data->source', 'bulk_import')
+                            ->whereIn('inspect_data->legacy_client_role', $roles);
+                    });
+            });
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->integer('location_id'));
@@ -50,7 +57,7 @@ class ReportController extends Controller
             $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
 
-        $items = $query->latest()->get();
+        $items = $query->latest()->paginate(20)->withQueryString();
         $clientRole = $admin->primaryHandledClientRole();
         $locationType = $clientRole === User::CLIENT_HQ ? Location::TYPE_HQ : Location::TYPE_BRANCH;
 
@@ -127,7 +134,7 @@ class ReportController extends Controller
 
     public function technicians(Request $request)
     {
-        $items = $this->buildTechnicianReportQuery($request)->latest()->get();
+        $items = $this->buildTechnicianReportQuery($request)->latest()->paginate(20)->withQueryString();
         $reportItems = $items->filter(fn (ClientRequest $item) => (bool) $item->technician_completed_at && !empty($item->customer_service_report))->values();
 
         return view('admin.reports.technicians', [
@@ -217,8 +224,16 @@ class ReportController extends Controller
 
     private function buildStatisticsBaseQuery(Request $request, User $admin, string $locationType)
     {
+        $roles = $admin->handledClientRoles();
         $query = ClientRequest::with(['user', 'location', 'department', 'requestType.questions', 'assignedTechnician'])
-            ->whereHas('location', fn ($q) => $q->where('type', $locationType));
+            ->whereHas('location', fn ($q) => $q->where('type', $locationType))
+            ->where(function ($q) use ($roles) {
+                $q->whereHas('user', fn ($userQuery) => $userQuery->whereIn('sub_role', $roles))
+                    ->orWhere(function ($legacyQuery) use ($roles) {
+                        $legacyQuery->where('inspect_data->source', 'bulk_import')
+                            ->whereIn('inspect_data->legacy_client_role', $roles);
+                    });
+            });
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->integer('location_id'));

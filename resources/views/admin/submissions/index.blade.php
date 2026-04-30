@@ -6,7 +6,7 @@
     $completedCount = $submissionCollection->filter(fn ($item) => (bool) $item->finance_completed_at)->count();
     $highUrgencyCount = $submissionCollection->where('urgency_level', 3)->count();
 @endphp
-<div class="page-header"><div><h1>Incoming Requests</h1><p>Review new tasks, assign technicians, and monitor related jobs with stronger filtering.</p></div></div>
+<div class="page-header"><div><h1>Incoming Requests</h1><p> </p></div></div>
 <div class="stats-grid four-up admin-inbox-cards">
     <div class="stat-card glassy-card"><span>This Page</span><strong>{{ $submissions->count() }}</strong><small>Visible rows after filters.</small></div>
     <div class="stat-card glassy-card"><span>Pending Attention</span><strong>{{ $pendingCount }}</strong><small>Any job waiting for finance close-out.</small></div>
@@ -17,7 +17,7 @@
     <div class="panel-head inbox-head power-filter-head">
         <div>
             <h3>Power Filters</h3>
-            <p class="helper-text">Filter cepat ikut job, status, technician dan medan khas yang ikut role client. Jangan campur HQ Staff dengan Kindergarten.</p>
+            <p class="helper-text"> </p>
         </div>
         <span class="filter-badge">Compact View</span>
     </div>

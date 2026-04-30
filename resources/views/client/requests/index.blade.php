@@ -66,7 +66,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($requests as $request)
+                    @forelse(($requestItems ?? $requests) as $request)
                         <tr class="{{ $request->relatedRequest ? 'premium-child-row' : 'parent-row' }}">
                             <td>
                                 <div class="job-card-shell {{ $request->relatedRequest ? 'child-shell' : '' }}">
@@ -146,6 +146,7 @@
                 </tbody>
             </table>
         </div>
+        @if(isset($requestItems))<div class="pagination-wrap">{{ $requestItems->links() }}</div>@endif
     </section>
     @endif
 
@@ -216,7 +217,7 @@
             <div>
                 <span class="hero-kicker">{{ $isEditing ? 'Resubmit Existing Request' : ($isRelatedMode ? 'Create Related Request' : 'Create New Request') }}</span>
                 <h3>{{ $isEditing ? 'Resubmit Request Form' : ($isRelatedMode ? 'Create Related Job Form' : 'Create New Request') }}</h3>
-                <p>{{ $isRelatedMode ? 'Main setup details below are copied from the parent job. You only need to update urgency, new remark details, and new supporting files.' : 'Form fields below will change automatically based on the request type you choose.' }}</p>
+                <p> </p>
             </div>
             <a class="btn small ghost" href="{{ route('client.requests.index', ['tab' => $activeTab]) }}">Back to List</a>
         </div>

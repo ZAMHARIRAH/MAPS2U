@@ -29,10 +29,11 @@ class RequestController extends Controller
                 ->find($request->integer('edit'));
         }
 
-        $requests = ClientRequest::with(['requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
+        $requestsQuery = ClientRequest::with(['requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
             ->visibleToClientEmail($user)
-            ->latest()
-            ->get();
+            ->latest();
+        $requests = (clone $requestsQuery)->get();
+        $requestItems = (clone $requestsQuery)->paginate(20)->withQueryString();
 
         $activeTab = $request->query('tab', 'new');
         if (!in_array($activeTab, ['new', 'related'], true)) {
@@ -71,6 +72,7 @@ class RequestController extends Controller
                 ->get(),
             'taskTitles' => TaskTitle::where('is_active', true)->orderBy('title')->get(['id', 'title']),
             'requests' => $requests,
+            'requestItems' => $requestItems,
             'editingRequest' => $editingRequest,
             'activeTab' => $activeTab,
             'relatedSourceRequests' => $relatedSourceRequests,
@@ -127,7 +129,7 @@ class RequestController extends Controller
             $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
 
-        $items = $query->latest()->get();
+        $items = $query->latest()->paginate(20)->withQueryString();
 
         return view('client.reports.index', [
             'items' => $items,
@@ -336,17 +338,31 @@ class RequestController extends Controller
                 $query->whereHas('user', fn ($q) => $q->whereIn('sub_role', [User::CLIENT_KINDERGARTEN, User::CLIENT_SSU, User::CLIENT_MASTER_SSU]))
                     ->orWhere(function ($or) {
                         $or->whereNull('user_id')
-                            ->where('inspect_data->legacy_client_role', User::CLIENT_KINDERGARTEN);
+                            ->whereIn('inspect_data->legacy_client_role', [User::CLIENT_KINDERGARTEN, User::CLIENT_SSU, User::CLIENT_MASTER_SSU]);
                     });
             });
 
         if (!$user->isMasterSsu()) {
             $branchIds = $user->assignedBranchIds();
-            if (!empty($branchIds)) {
-                $query->whereIn('location_id', $branchIds);
+            !empty($branchIds) ? $query->whereIn('location_id', $branchIds) : $query->whereRaw('1 = 0');
+        }
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->integer('location_id'));
+        }
+        if ($request->filled('status')) {
+            $status = (string) $request->input('status');
+            if ($status === ClientRequest::STATUS_FINANCE_PENDING) {
+                $query->whereNotNull('technician_completed_at')->whereNull('finance_completed_at')->whereNotNull('approved_quotation_index');
             } else {
-                $query->whereRaw('1 = 0');
+                $query->where('status', $status);
             }
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
 
         $items = $query->latest()->paginate(20)->withQueryString();
@@ -354,6 +370,9 @@ class RequestController extends Controller
         return view('client.requests.dashboard-list', [
             'items' => $items,
             'user' => $user,
+            'locations' => $this->locationsFor($user),
+            'filters' => $request->all(),
+            'statusOptions' => ClientRequest::adminVisibleStatusOptions(),
         ]);
     }
 

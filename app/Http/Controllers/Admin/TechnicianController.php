@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class TechnicianController extends Controller
 {
-    public function index() { return view('admin.technicians.index', ['technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->get()]); }
+    public function index() { return view('admin.technicians.index', ['technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->paginate(20)->withQueryString()]); }
     public function create() { return view('admin.technicians.create'); }
 
     public function store(Request $request)

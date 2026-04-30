@@ -15,7 +15,7 @@ class LocationController extends Controller
 
         return view('admin.locations.index', [
             'type' => $locationType,
-            'locations' => Location::where('type', $locationType)->latest()->get(),
+            'locations' => Location::where('type', $locationType)->latest()->paginate(20)->withQueryString(),
         ]);
     }
 

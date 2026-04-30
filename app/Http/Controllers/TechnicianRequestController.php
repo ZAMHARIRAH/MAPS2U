@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClientRequest;
 use App\Models\Vendor;
+use App\Models\SystemNotification;
 use App\Services\ClientCommunicationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,18 +16,22 @@ class TechnicianRequestController extends Controller
     public function __construct(private readonly ClientCommunicationService $communicationService)
     {
     }
+
     public function index()
     {
+        $baseQuery = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
+            ->where('assigned_technician_id', Auth::id());
+
         return view('technician.requests.index', [
-            'jobs' => ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
-                ->where('assigned_technician_id', Auth::id())
-                ->where(function ($query) {
-                    $query->where('status', '!=', ClientRequest::STATUS_COMPLETED)
-                        ->orWhere('inspect_data->source', '!=', 'bulk_import')
-                        ->orWhereNull('inspect_data');
-                })
+            'jobs' => (clone $baseQuery)
+                ->orderByRaw('CASE WHEN technician_completed_at IS NULL AND status != ? THEN 0 ELSE 1 END', [ClientRequest::STATUS_COMPLETED])
                 ->latest()
-                ->get(),
+                ->paginate(20)
+                ->withQueryString(),
+            'totalAssignedJobs' => (clone $baseQuery)->count(),
+            'pendingJobs' => (clone $baseQuery)->whereNull('technician_completed_at')->count(),
+            'completedJobs' => (clone $baseQuery)->whereNotNull('technician_completed_at')->count(),
+            'relatedJobs' => (clone $baseQuery)->whereNotNull('related_request_id')->count(),
         ]);
     }
 
@@ -253,6 +258,12 @@ class TechnicianRequestController extends Controller
                 : ($vendor?->company_name ?: $request->input("quotation_{$i}_company_name"));
 
             if ($fileMeta || $companyName || $request->filled("quotation_{$i}_amount")) {
+                if (!$subjectToApproval && !$vendor) {
+                    return back()->withErrors(["quotation_{$i}_vendor_id" => "Select a vendor from the dropdown, or tick Subject To Approval and enter the company name."])->withInput();
+                }
+                if ($subjectToApproval && blank($companyName)) {
+                    return back()->withErrors(["quotation_{$i}_manual_company_name" => "Company name is required when Subject To Approval is ticked."])->withInput();
+                }
                 $entries[] = [
                     'slot' => $i,
                     'file' => $fileMeta,
@@ -277,6 +288,10 @@ class TechnicianRequestController extends Controller
                     ] : ($existing['vendor_snapshot'] ?? null),
                 ];
             }
+        }
+
+        if (empty($entries)) {
+            return back()->withErrors(['quotation_1_file' => 'Submit at least one quotation with vendor/dropdown or Subject To Approval details.'])->withInput();
         }
 
         $clientRequest->update([
@@ -342,7 +357,24 @@ class TechnicianRequestController extends Controller
             'status' => ClientRequest::STATUS_WORK_IN_PROGRESS,
         ]);
 
-        $this->communicationService->notify($clientRequest->fresh(['user','requestType','assignedTechnician']), 'inspection_schedule');
+        $freshScheduledRequest = $clientRequest->fresh(['user','requestType','assignedTechnician']);
+        if ($freshScheduledRequest->user_id) {
+            SystemNotification::updateOrCreate(
+                [
+                    'user_id' => $freshScheduledRequest->user_id,
+                    'client_request_id' => $freshScheduledRequest->id,
+                    'type' => 'inspection_schedule',
+                ],
+                [
+                    'title' => $freshScheduledRequest->request_code . ' schedule set',
+                    'body' => 'Technician scheduled this job on ' . optional($freshScheduledRequest->scheduled_date)->format('d M Y') . ' ' . ($freshScheduledRequest->scheduled_time ?: ''),
+                    'url' => route('client.requests.show', $freshScheduledRequest),
+                    'read_at' => null,
+                ]
+            );
+        }
+
+        $this->communicationService->notify($freshScheduledRequest, 'inspection_schedule');
 
         return back()->with('success', 'Work execution submitted successfully.');
     }

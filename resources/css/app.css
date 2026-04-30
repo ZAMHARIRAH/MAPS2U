@@ -1853,3 +1853,26 @@ body.sidebar-open .sidebar{transform:translateX(0)}
 @media (max-width:720px){.power-filter-panel{padding:18px}.power-filter-head{flex-direction:column;align-items:flex-start}.filter-search-wrap,.filter-grid-two>div,.nested-date-grid>div{padding:12px 14px}}
 
 .preview-grid.two-up{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}.preview-grid.two-up .file-preview-card{margin:6px 0}.preview-grid.two-up .inline-preview-image{max-height:180px}.preview-grid.two-up .inline-preview-frame{min-height:180px}.file-preview-card .file-preview-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px}.file-preview-card strong{font-size:12px}.compact-request-shell .panel,.compact-request-shell .summary-card,.compact-request-shell .helper-card{padding:18px}.compact-request-shell .content-grid.two,.compact-request-shell .content-grid.tri,.compact-request-shell .content-grid.two-two{gap:14px}.compact-request-shell .page-header{margin-bottom:14px}.compact-request-shell .panel + .panel{margin-top:14px}
+.notification-bell-btn{position:relative}.notification-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}.dropdown-notice.is-read{opacity:.62}.technician-table-clean tbody tr,.job-log-table-clean tbody tr{border-bottom:1px solid #d7dde8}.technician-table-clean td,.technician-table-clean th,.job-log-table-clean td,.job-log-table-clean th{border-bottom:1px solid #d7dde8;vertical-align:top}.child-row td:first-child{padding-left:26px}.parent-row td:first-child{font-weight:800}
+
+/* compact pagination for all table lists */
+.pagination-wrap{margin-top:14px;display:flex;justify-content:flex-end;align-items:center}
+.pagination-wrap nav{display:flex;align-items:center;gap:6px;font-size:12px}
+.pagination-wrap svg,nav[role="navigation"] svg{width:14px!important;height:14px!important;max-width:14px!important;max-height:14px!important}
+.pagination-wrap a,.pagination-wrap span,nav[role="navigation"] a,nav[role="navigation"] span{font-size:12px;line-height:1.2}
+.pagination-wrap .relative,nav[role="navigation"] .relative{padding:.35rem .55rem!important}
+.technician-table-clean tbody td:first-child{border-bottom:1px solid #d7dde8!important;vertical-align:top}
+
+/* Fix technician/request tables: keep first-column TD as a real table cell so row borders span full width */
+.inbox-table td.table-primary-cell,
+.technician-table-clean td.table-primary-cell,
+.job-log-table-clean td.table-primary-cell{
+    display:table-cell!important;
+    border-bottom:1px solid #d7dde8!important;
+}
+.inbox-table td.table-primary-cell > *,
+.technician-table-clean td.table-primary-cell > *,
+.job-log-table-clean td.table-primary-cell > *{
+    display:inline-flex;
+    align-items:center;
+}

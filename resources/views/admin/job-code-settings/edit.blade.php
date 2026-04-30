@@ -1,6 +1,6 @@
 @extends('layouts.app', ['title' => 'Job Request Code'])
 @section('content')
-<div class="page-header"><div><h1>Job Request Code</h1><p>Set the next code used for new client requests. Imported legacy request_code is kept as-is and will not control this counter.</p></div></div>
+<div class="page-header"><div><h1>Job Request Code</h1><p> </p></div></div>
 <section class="panel">
     <form method="POST" action="{{ route('admin.job-code-settings.update') }}" class="form-grid">
         @csrf @method('PUT')

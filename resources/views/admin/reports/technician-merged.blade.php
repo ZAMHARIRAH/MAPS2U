@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}.report-table th,.r
 </div>
 <div class="page">
     <h1 class="page-title">Merged Technician Reports</h1>
-    <p class="page-sub">Completed jobs only. Each completed job is shown as two documents in one view: technician report first, then client feedback review on the next page.</p>
+    <p class="page-sub"> </p>
     <div class="stamp-card">
         <div class="stamp-item"><strong>Admin Clicked View For Print</strong><span>{{ $viewedAt }}</span></div>
         <div class="stamp-item"><strong>Printed Documents</strong><span>{{ $items->count() }} completed job(s)</span></div>

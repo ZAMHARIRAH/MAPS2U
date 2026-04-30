@@ -71,9 +71,9 @@ class AdminDashboardController extends Controller
 
         return view('admin.accounts.index', [
             'admin' => $admin,
-            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->whereNotIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->get(),
-            'ssuAccounts' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->get(),
-            'technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->get(),
+            'clients' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', $admin->handledClientRoles())->whereNotIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->paginate(20, ['*'], 'clients_page')->withQueryString(),
+            'ssuAccounts' => User::where('role', User::ROLE_CLIENT)->whereIn('sub_role', [User::CLIENT_SSU, User::CLIENT_MASTER_SSU])->orderBy('name')->paginate(20, ['*'], 'ssu_page')->withQueryString(),
+            'technicians' => User::where('role', User::ROLE_TECHNICIAN)->orderBy('name')->paginate(20, ['*'], 'technicians_page')->withQueryString(),
         ]);
     }
 

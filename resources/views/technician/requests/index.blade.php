@@ -1,35 +1,30 @@
 @extends('layouts.app', ['title' => 'Job Request'])
 
 @section('content')
-@php
-    $pendingJobs = $jobs->filter(fn ($job) => !$job->technician_completed_at)->count();
-    $relatedJobs = $jobs->filter(fn ($job) => !empty($job->related_request_id))->count();
-@endphp
-
 <div class="page-header premium-page-header">
     <div>
         <h1>Job Request</h1>
-        <p>All assigned jobs from admin are listed here with the latest status and technician daily log control.</p>
+        <p> </p>
     </div>
 </div>
 
 <div class="stats-grid admin-inbox-cards">
-    <div class="stat-card premium-stat-card"><span>Total Assigned</span><strong>{{ $jobs->count() }}</strong><small>All jobs assigned to this technician</small></div>
-    <div class="stat-card premium-stat-card"><span>Pending / Active</span><strong>{{ $pendingJobs }}</strong><small>Jobs not yet completed</small></div>
-    <div class="stat-card premium-stat-card"><span>Completed</span><strong>{{ $jobs->filter(fn ($job) => (bool) $job->technician_completed_at)->count() }}</strong><small>Customer service report submitted</small></div>
-    <div class="stat-card premium-stat-card"><span>Related Jobs</span><strong>{{ $relatedJobs }}</strong><small>Child jobs linked to another request</small></div>
+    <div class="stat-card premium-stat-card"><span>Total Assigned</span><strong>{{ $totalAssignedJobs ?? $jobs->total() }}</strong><small>All jobs assigned to this technician</small></div>
+    <div class="stat-card premium-stat-card"><span>Pending / Active</span><strong>{{ $pendingJobs ?? 0 }}</strong><small>Jobs not yet completed</small></div>
+    <div class="stat-card premium-stat-card"><span>Completed</span><strong>{{ $completedJobs ?? 0 }}</strong><small>Customer service report submitted</small></div>
+    <div class="stat-card premium-stat-card"><span>Related Jobs</span><strong>{{ $relatedJobs ?? 0 }}</strong><small>Child jobs linked to another request</small></div>
 </div>
 
 <section class="panel premium-table-panel inbox-panel" style="margin-top:20px;">
     <div class="panel-head premium-table-head inbox-head">
         <div>
             <h3>Assigned Job Requests</h3>
-            <p>Use this list to jump into the technician workspace for each job.</p>
+            <p> </p>
         </div>
     </div>
 
     <div class="table-responsive">
-        <table class="table inbox-table hierarchy-table">
+        <table class="table inbox-table hierarchy-table technician-table-clean">
             <thead>
                 <tr>
                     <th>Job ID</th>
@@ -81,6 +76,7 @@
             </tbody>
         </table>
     </div>
+    <div class="pagination-wrap">{{ $jobs->links() }}</div>
 </section>
 
 <div id="technician-log-modal" class="modal-shell" style="display:none;">

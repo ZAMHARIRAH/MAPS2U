@@ -15,7 +15,7 @@ class RequestTypeController extends Controller
     public function index()
     {
         return view('admin.request-types.index', [
-            'requestTypes' => RequestType::with('questions.options')->latest()->get(),
+            'requestTypes' => RequestType::with('questions.options')->latest()->paginate(20)->withQueryString(),
         ]);
     }
 

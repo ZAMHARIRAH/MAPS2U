@@ -12,7 +12,7 @@ class AnnouncementController extends Controller
     public function index()
     {
         return view('admin.announcements.index', [
-            'announcements' => Announcement::ordered()->get(),
+            'announcements' => Announcement::ordered()->paginate(20)->withQueryString(),
         ]);
     }
 

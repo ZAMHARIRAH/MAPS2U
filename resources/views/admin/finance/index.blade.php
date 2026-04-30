@@ -3,12 +3,12 @@
 <div class="page-header">
     <div>
         <h1>{{ $pageTitle ?? 'Finance' }}</h1>
-        <p>{{ $pageIntro ?? ($isViewer ? 'Viewer can monitor all HQ Staff and Kindergarten finance submissions in view-only mode.' : 'Signed approved quotation and payment receipt history from technician jobs will appear here for finance processing.') }}</p>
+        <p> </p>
     </div>
 </div>
 
 <div class="stats-grid four-up">
-    <div class="stat-card"><span>Total Queue</span><strong>{{ $requests->count() }}</strong></div>
+    <div class="stat-card"><span>Total Queue</span><strong>{{ $totalQueue ?? $requests->total() ?? $requests->count() }}</strong></div>
     <div class="stat-card"><span>Pending Finance</span><strong>{{ $pendingCount }}</strong></div>
     <div class="stat-card"><span>Completed</span><strong>{{ $completedCount }}</strong></div>
     <div class="stat-card"><span>Print Ready</span><strong>{{ $completedCount }}</strong></div>
@@ -58,6 +58,7 @@
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ ($pendingRequests ?? $requests)->links() }}</div>
 </section>
 
 <section class="panel" style="margin-top:20px;">
@@ -92,5 +93,6 @@
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ ($completedRequests ?? collect())->links() }}</div>
 </section>
 @endsection

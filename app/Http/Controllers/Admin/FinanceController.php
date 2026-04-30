@@ -54,23 +54,25 @@ class FinanceController extends Controller
         $admin = Auth::user();
         $roles = $this->accessibleRoles($admin, $mapsScope);
 
-        $allRequests = ClientRequest::with(['user', 'requestType', 'assignedTechnician'])
+        $baseQuery = ClientRequest::with(['user', 'requestType', 'assignedTechnician'])
             ->whereHas('user', fn ($query) => $query->whereIn('sub_role', $roles))
-            ->whereNotNull('approved_quotation_index')
-            ->latest()
-            ->get();
+            ->whereNotNull('approved_quotation_index');
 
         $isViewer = $admin->isViewer();
-        $pendingRequests = $allRequests->whereNull('finance_completed_at')->values();
-        $completedRequests = $allRequests->whereNotNull('finance_completed_at')->values();
-        $requests = $isViewer ? $allRequests : $pendingRequests;
+        $pendingCount = (clone $baseQuery)->whereNull('finance_completed_at')->count();
+        $completedCount = (clone $baseQuery)->whereNotNull('finance_completed_at')->count();
+        $totalQueue = (clone $baseQuery)->count();
+        $pendingRequests = (clone $baseQuery)->whereNull('finance_completed_at')->latest()->paginate(20, ['*'], 'pending_page')->withQueryString();
+        $completedRequests = (clone $baseQuery)->whereNotNull('finance_completed_at')->latest()->paginate(20, ['*'], 'completed_page')->withQueryString();
+        $requests = $isViewer ? (clone $baseQuery)->latest()->paginate(20)->withQueryString() : $pendingRequests;
 
         return view('admin.finance.index', [
             'requests' => $requests,
             'pendingRequests' => $pendingRequests,
             'completedRequests' => $completedRequests,
-            'pendingCount' => $pendingRequests->count(),
-            'completedCount' => $completedRequests->count(),
+            'pendingCount' => $pendingCount,
+            'completedCount' => $completedCount,
+            'totalQueue' => $totalQueue,
             'isViewer' => $isViewer,
             'mapsScope' => $mapsScope,
             'pageTitle' => $mapsScope ? 'Finance MAPS' : 'Finance',

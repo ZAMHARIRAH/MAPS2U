@@ -16,5 +16,6 @@
             @endforelse
         </tbody>
     </table>
+    <div class="pagination-wrap">{{ $departments->links() }}</div>
 </section>
 @endsection
