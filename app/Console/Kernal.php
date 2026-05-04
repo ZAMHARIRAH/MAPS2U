@@ -8,6 +8,9 @@ class Kernel extends ConsoleKernel
 {
     protected $commands = [
         \App\Console\Commands\ImportUsersFromCsv::class,
+        \App\Console\Commands\ImportTechniciansFromCsv::class,
+        \App\Console\Commands\ImportBranchesFromCsv::class,
+        \App\Console\Commands\ImportVendorsFromCsv::class,
 
     ];
 

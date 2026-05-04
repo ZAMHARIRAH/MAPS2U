@@ -1,0 +1,75 @@
+name,address,is_active
+LC JHR Bandar Dato Onn,"No. 34-01, Jalan Perjiranan 2, Bandar Dato Onn, 81100 Johor Bahru, Johor",1
+LC JHR Kulaijaya,"GF, Unit 5024, Jalan Kenari 1, Bandar Putra, 81000 Kulai, Johor",1
+LC JHR Senai,"21-01, Lot 107771, Jalan Senai 81400 Senai Johor",1
+LC JHR Plentong,"Block K-01-06(Ground Floor), Jalan EJ 3/1, Taman Ehsan Jaya,81100 Johor Bahru, Johor",1
+LC JHR Taman Mutiara Rini,"No 39A, Jalan Utama 34, Taman Mutiara Rini, 81300 Johor",1
+LC JHR Medini,"S-15-02, Pusat Komersil Visi Medini, Persiaran Medini 2, 79250 Iskandar Puteri, Johor",1
+LC JHR Segamat,"No.1 (Ground floor), Jalan putra 2/23, Bandar putra IOI 85000 Segamat, Johor",1
+"LC TRG Kampung Raja, Besut","Lot 61186a Taman D'Harah, Jalan Pengkalan Nyireh, Kg Terbak, Mukim Kampung Raja 22000 Besut Terengganu",1
+LC SBH Sandakan Batu 1.5,"No 3, Batu 1.5, Jalan Utara, Jalan Chi Hwa, 90000 Sandakan, Sabah",1
+LC SBH Sandakan Batu 7,"Lot 441, Taman megah, Jalan labuk, 90000 Sandakan Sabah",1
+LC SBH Papar,"Lot 13, Tmn JB Villa PHS 2 Jln Bukit Manggis Kg Livagu 89600 Papar",1
+LC SEL Kuala Selangor,"No 1/A, Jalan Melati 3/5, Bandar Melawati, 45000 Kuala Selangor, Selangor",1
+LC SEL Kuala Selangor Ext,"No 44, Jalan Melati 3/25, Bandar Melawati 45000 Kuala Selangor",1
+LC SEL Rahman Putra,"No 1, Jln BRP 7/1G, Bukit Rahman Putra, 47000 Sungai Buloh, Selangor",1
+LC SEL Sungai Buloh,"Lot 73-1, Jalan Nautika A U20/A, Pusat Komesial TSB, 40160 Shah Alam, Selangor (Sungai Buloh)",1
+LC SEL Denai Alam,"No 5-2, First Floor, Jalan Elektron F U16/F, Seksyen U16, 40160 Shah Alam, Selangor",1
+LC SEL EC,"No. 4, Block C, Jalan Platinum 7/58, Seksyen 7 40000 Shah Alam Selangor",1
+LC SEL Jalan Pualam,"No 2, Jalan Pualam 2 7/32B, Seksyen 7, 40000 Shah Alam, Selangor",1
+LC SEL Jalan Pualam Ext,"M2-02, Blok 2, Tingkat 2 Kondominium Kristal Jalan Pualam 7/32, Seksyen 7 40000 Shah Alam, Selangor",1
+LC SEL Seksyen 13,"No. 2-07-1 Blok 2 Presint Alami No. 2 Persiaran Akuatik, Seksyen 13, 40100 Shah Alam, Selangor",1
+LC SEL Seksyen 19,"No 65-1, Jalan Nelayan A 19/A, Seksyen 19, 40400 Shah Alam, Selangor",1
+LC SEL Seksyen 9,"No 1-B, Jalan Tengku Ampuan Zabedah F 9/F, Seksyen 9, 40100 Shah Alam, Selangor",1
+LC SEL Taman Pinggiran USJ,"No 12A Floor G, jalan pinggiran usj 1/8, taman pinggiran usj 1, 47600 subang jaya, selangor.",1
+LC SEL Taman Pinggiran USJ Ext,"No 2A Floor G, jalan pinggiran usj 1/8, taman pinggiran usj 1, 47600 subang jaya, selangor.",1
+LC KDH Bandar Kuala Kedah,"No. 1, Tingkat 1, Premis Kompleks MHJ Utama, Jalan Batas Paip, 06600 Bandar Kuala Kedah, Kedah",1
+LC KDH Changloon,"No 30, Jalan Seraya 1, Taman Seraya, 06010 Changloon, Kedah",1
+LC KDH Jalan Langgar,"No. 22-A (tingkat bawah), Taman Vistana Indah, Jalan Langgar, 06500 Alor Setar, Kedah",1
+LC KDH Langkawi,"153C Persiaran Bunga Raya, Langkawi Mall 2, Kuah 07000, Langkawi, Kedah",1
+LC KDH Mergong,"No.122, Jalan Sari, Taman Bandar Baru Mergong, 05250 Alor Setar, Kedah",1
+LC KDH Bdr Laguna Merbok,"No 55, Lorong BLM 1/6, Bandar Laguna Merbok, 08000 Sungai Petani, Kedah",1
+LC KDH Jalan Pegawai,"No 157, Ground Floor, Kompleks Sultan Abdul Hamid, Phase 2, Persiaran Sultan Abdul Hamid, 05050 Alor Setar, Kedah",1
+LC KDH Titi Gajah,"Tingkat 1, Taman Mas Indah, Susuran Mas Merah, Titi Gajah, 06550 Alor Setar, Kedah",1
+LC PLS Arau,"No. 7, Tingkat 1, Jalan Medan Arau
+Jaya, Medan Arau Jaya, 02600 Arau, Perlis",1
+LC PLS Kangar Jaya,"NO 27, TINGKAT 1, JALAN KANGAR JAYA, 14 OFF KANGAR JAYA 01000 KANGAR PERLIS MALAYSIA",1
+LC KL Bandar Sri Permaisuri,"22A-1&2, Jalan Dwitasik 2, Bandar Sri Permaisuri, 56000 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur",1
+LC KL Bandar Tun Razak,"No 23, Jalan Budiman 7, Taman Mulia, Bandar Tun Razak, Kuala Lumpur",1
+LC KL Setiawangsa Biz Center,"No. A-0-2, Setiawangsa Business Suite, Jalan Setiawangsa 11, Taman Setiawangsa, 54200 Kuala Lumpur",1
+LC KL Taman Midah,"101, Jalan Midah 3, Taman Midah 56100 Cheras Kuala Lumpur",1
+LC PRK Hutan Melintang,"No. 1, Lorong Sri Intan 9A, Taman Sri Intan 4, 36400 Hutan Melintang, Perak",1
+LC PRK Simpang Taiping,"No. 23, Lorong Cemerlang 12, Taman Pengkalan Cemerlang, 34000 Taiping, Perak",1
+LC PRK Simpang Taiping Ext,"No 2, Lorong Pengkalan Cemerlang 4, Taman Pengkalan Cemerlang, 34000 Taiping, Perak",1
+LC PRK Teluk Intan,"No. 1, Jalan Teratai J4/3, Taman Indah Jaya, 36000 Teluk Intan, Perak",1
+LC PRK Teluk Intan Ext,"No 55, Lorong Sejati 2 Taman Melor Sejati, Sejati Waterfront, 36000 Teluk Intan Perak",1
+LC N9 Bandar Enstek,"No 41Q, Persada Jaya, Alam Milennia 1, Enstek, 71780 Nilai, Negeri Sembilan",1
+LC N9 Bandar Enstek Ext,"No 97, Jalan Timur 6/1C, 71760 Bandar Enstek, Negeri Sembilan",1
+LC N9 Bandar Springhill,"No 58 1, Jalan Springhill 9/12, Bandar Springhill, 71010 Port Dickson, Negeri Sembilan",1
+LC N9 Kota Seriemas,"No. 252 , Jalan Bakawali B/10, Kota Seriemas , 71800 Nilai, Negeri Sembilan",1
+LC SEL Bdr Baru Salak Tinggi,"No. 47-1, Jalan Mawar 3B, Taman Mawar, Bandar Baru Salak Tinggi, 43900 Sepang, Selangor",1
+LC SEL Dataran Abadi,"No. 1, Jalan Dataran Abadi, Taman Dataran Abadi, 43900 Sepang, Selangor",1
+LC SEL Dataran Abadi Ext,"No 3, Jalan DA 7/3, Taman Dataran Abadi, Labu Lanjut, Salak Tinggi, 43900 Sepang, Selangor",1
+LC SEL Salak Tinggi,"No 7, Tingkat 1, Jalan Baiduri 1, 43400 Salak Tinggi Sepang, Selangor",1
+LC WPJ IOI Resort City,"L-UG-03, UG Floor, Connection Commercial Persiaran IRC 3, IOI Resort City 62502 Putrajaya, Sepang, Selangor",1
+LC WPJ Presint 15,"Unit. No.2A, First Floor, Commercial Lot Nadi 15, Jalan Pulau Pinang, Presint 15 Putrajaya, 62050, Wilayah Persekutuan Putrajaya",1
+LC Playschool Bandar Springhill,"Lot 57-1, Jalan Springhill 9/12, Bandar Springhill 71010 Port Dickson, Negeri Sembilan",1
+LC Playschool Bdr Sri Permaisuri,"No 22-1 Jalan Dwitasik 2, Dataran Dwitasik, Bandar Sri Permaisuri 56000 Kuala Lumpur",1
+LC Playschool Bdr Baru Salak Tinggi,"No 47-G, Jalan Mawar 3B, Taman Mawar, Bandar Baru Salak Tinggi,  43900 Sepang, Selangor",1
+LC Playschool Kuala Selangor,No 44 Jalan Melati 3/25 Bandar Melawati 45000 Kuala Selangor,1
+LC Playschool Seksyen 19,"49-1, Jalan Nelayan A 19/A, Seksyen 19, 40300 Shah Alam, Selangor",1
+LC Playschool Seksyen 8,"No 2 Jalan Gunung Nuang U11/7, Taman Bukit Bandaraya 40170",1
+LC Playschool Denai Alam,"No 5-2, First Floor, Jalan Elektron F U16/F, Seksyen U16, 40160 Shah Alam, Selangor",1
+LC Playschool Sungai Buloh,"No 75-2, Jln Nautika A U20/A, Pusat komersil TSB, 
+Seksyen U20, 40160 Shah Alam, Selangor",1
+LC Playschool Bdr Laguna Merbok,"No 10A, Lorong BLM 1/6, Bandar Laguna Merbok, 08000 Sungai Petani, Kedah",1
+LC Playschool Jalan Langgar,"No. 21 (tingkat 1), Taman Vistana Indah Jalan Langgar 06500 Langgar Kedah",1
+LC PLayschool Jalan Pegawai,"No 157, Ground Floor, Kompleks Sultan Abdul Hamid, Persiaran Sultan Abdul Hamid, Fasa II, 05050 Alor Setar, Kedah",1
+LC Playschool Langkawi,"No 153B, Persiaran Bunga Raya, Langkawi Mall 2, 07000 Kuah Langkawi Kedah",1
+LC Playschool Mergong,"No.123, Jalan Sari, Taman Bandar Baru Mergong, 05250 Alor Setar, Kedah",1
+LC Playschool Arau,"No. 5, Tingkat 1, Jalan Medan Arau
+Jaya, Medan Arau Jaya, 02600 Arau, Perlis",1
+LC Playschool Kangar Jaya,"NO 25, TINGKAT 1, JALAN KANGAR JAYA, 14 OFF KANGAR JAYA 01000 KANGAR PERLIS MALAYSIA",1
+LC Playschool Hutan Melintang,"No1, Lorong Sri Intan 9A, Taman Sri Intan 4, 36400 Hutan Melintang, Perak",1
+LC Playschool Langkap,"No 29, PT 4512, Lorong 2, Jalan Chui Chak Taman Seri Langkap, 36700 Langkap, Perak",1
+LC Playschool Medini,"S-14-02, Pusat Komersil Visi Medini, Persiaran Medini 2, Bandar Medini Iskandar, 79250, Iskandar Puteri, Johor",1
