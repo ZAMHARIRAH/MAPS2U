@@ -10,9 +10,13 @@
 
 <div class="stats-grid admin-inbox-cards">
     <div class="stat-card premium-stat-card"><span>Total Assigned</span><strong>{{ $totalAssignedJobs ?? $jobs->total() }}</strong><small>All jobs assigned to this technician</small></div>
-    <div class="stat-card premium-stat-card"><span>Pending / Active</span><strong>{{ $pendingJobs ?? 0 }}</strong><small>Jobs not yet completed</small></div>
-    <div class="stat-card premium-stat-card"><span>Completed</span><strong>{{ $completedJobs ?? 0 }}</strong><small>Customer service report submitted</small></div>
     <div class="stat-card premium-stat-card"><span>Related Jobs</span><strong>{{ $relatedJobs ?? 0 }}</strong><small>Child jobs linked to another request</small></div>
+    <div class="stat-card premium-stat-card"><span>Pending</span><strong>{{ $pendingCount ?? 0 }}</strong><small>Jobs not completed yet</small></div>
+    <div class="stat-card premium-stat-card"><span>Under Review</span><strong>{{ $underReviewCount ?? 0 }}</strong><small>Still in checking stage</small></div>
+    <div class="stat-card premium-stat-card"><span>Pending Approval</span><strong>{{ $pendingApprovalCount ?? 0 }}</strong><small>Waiting for admin approval</small></div>
+    <div class="stat-card premium-stat-card"><span>Work In Progress</span><strong>{{ $workProgressCount ?? 0 }}</strong><small>Execution has started</small></div>
+    <div class="stat-card premium-stat-card"><span>Completed</span><strong>{{ $completedByTechnicianCount ?? 0 }}</strong><small>Customer service report submitted</small></div>
+    <div class="stat-card premium-stat-card"><span>Complete (%)</span><strong>{{ $completionPercent ?? 0 }}%</strong><small> </small></div>
 </div>
 
 <section class="panel premium-table-panel inbox-panel" style="margin-top:20px;">
@@ -22,12 +26,30 @@
             <p> </p>
         </div>
     </div>
+    <form method="GET" class="filter-toolbar-grid compact-filter-grid" style="margin-bottom:16px;">
+        <div class="filter-grid-two">
+            <div>
+                <label class="helper-text">Status Job</label>
+                <select name="status">
+                    <option value="">All Status</option>
+                    @foreach($statusOptions as $status)
+                        <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ $status }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div class="action-row compact-filter-actions">
+            <button class="btn primary" type="submit">Apply Filter</button>
+            <a class="btn ghost" href="{{ route('technician.job-requests.index') }}">Reset</a>
+        </div>
+    </form>
 
     <div class="table-responsive">
         <table class="table inbox-table hierarchy-table technician-table-clean">
             <thead>
                 <tr>
                     <th>Job ID</th>
+                    <th>Date Request</th>
                     <th>Client</th>
                     <th>Type</th>
                     <th>Urgency</th>
@@ -48,6 +70,7 @@
                                 {{ $job->request_code }}
                             @endif
                         </td>
+                        <td>{{ $job->created_at?->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') ?? '-' }}</td>
                         <td>{{ $job->full_name }}</td>
                         <td>{{ $job->requestType->name }}</td>
                         <td><span class="badge {{ $job->urgencyBadgeClass() }}">{{ $job->urgencyLabel() }}</span></td>
@@ -71,7 +94,7 @@
                         <td><a class="btn small ghost" href="{{ route('technician.job-requests.show', $job) }}">View</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="9">No assigned job request yet.</td></tr>
+                    <tr><td colspan="10">No assigned job request yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -17,24 +17,100 @@ class TechnicianRequestController extends Controller
     {
     }
 
-    public function index()
-    {
-        $baseQuery = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
-            ->where('assigned_technician_id', Auth::id());
+    public function index(Request $request)
+{
+    $baseQuery = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
+        ->where('assigned_technician_id', Auth::id());
 
-        return view('technician.requests.index', [
-            'jobs' => (clone $baseQuery)
-                ->orderByRaw('CASE WHEN technician_completed_at IS NULL AND status != ? THEN 0 ELSE 1 END', [ClientRequest::STATUS_COMPLETED])
-                ->latest()
-                ->paginate(20)
-                ->withQueryString(),
-            'totalAssignedJobs' => (clone $baseQuery)->count(),
-            'pendingJobs' => (clone $baseQuery)->whereNull('technician_completed_at')->count(),
-            'completedJobs' => (clone $baseQuery)->whereNotNull('technician_completed_at')->count(),
-            'relatedJobs' => (clone $baseQuery)->whereNotNull('related_request_id')->count(),
-        ]);
+    $statsQuery = clone $baseQuery;
+    $baseCountQuery = clone $baseQuery;
+
+    if ($request->filled('status')) {
+        $status = (string) $request->input('status');
+
+        if ($status === ClientRequest::STATUS_COMPLETED) {
+            $baseQuery->where(function ($query) {
+                $query->whereNotNull('technician_completed_at')
+                    ->orWhere('status', ClientRequest::STATUS_COMPLETED);
+            });
+        } else {
+            $baseQuery->where('status', $status)
+                ->whereNull('technician_completed_at');
+        }
     }
 
+    $totalAssignedJobs = (clone $statsQuery)->count();
+
+    $pendingJobs = (clone $statsQuery)
+        ->whereNull('technician_completed_at')
+        ->where('status', '!=', ClientRequest::STATUS_COMPLETED)
+        ->count();
+
+    $completedJobs = (clone $statsQuery)
+        ->where(function ($query) {
+            $query->whereNotNull('technician_completed_at')
+                ->orWhere('status', ClientRequest::STATUS_COMPLETED);
+        })
+        ->count();
+
+    $completionPercent = $totalAssignedJobs > 0
+        ? round(($completedJobs / $totalAssignedJobs) * 100)
+        : 0;
+
+    $underReviewCount = (clone $baseCountQuery)
+        ->where('status', ClientRequest::STATUS_UNDER_REVIEW)
+        ->count();
+
+    $pendingApprovalCount = (clone $baseCountQuery)
+        ->where('status', ClientRequest::STATUS_PENDING_APPROVAL)
+        ->count();
+
+    $workProgressCount = (clone $baseCountQuery)
+        ->where('status', ClientRequest::STATUS_WORK_IN_PROGRESS)
+        ->count();
+
+    return view('technician.requests.index', [
+        'jobs' => (clone $baseQuery)
+            ->orderByRaw("CASE
+                WHEN status = ? THEN 0
+                WHEN status = ? THEN 1
+                WHEN status = ? THEN 2
+                WHEN technician_completed_at IS NOT NULL OR status = ? THEN 8
+                ELSE 3
+            END", [
+                ClientRequest::STATUS_PENDING_APPROVAL,
+                ClientRequest::STATUS_UNDER_REVIEW,
+                ClientRequest::STATUS_WORK_IN_PROGRESS,
+                ClientRequest::STATUS_COMPLETED,
+            ])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString(),
+
+        'statusOptions' => [
+            ClientRequest::STATUS_UNDER_REVIEW,
+            ClientRequest::STATUS_WORK_IN_PROGRESS,
+            ClientRequest::STATUS_RETURNED,
+            ClientRequest::STATUS_CLIENT_RETURNED,
+            ClientRequest::STATUS_PENDING_TECHNICIAN_FEEDBACK,
+            ClientRequest::STATUS_FINANCE_PENDING,
+            ClientRequest::STATUS_COMPLETED,
+        ],
+
+        'filters' => $request->all(),
+        'totalAssignedJobs' => $totalAssignedJobs,
+        'pendingJobs' => $pendingJobs,
+        'pendingCount' => $pendingJobs,
+        'completedJobs' => $completedJobs,
+        'completedByTechnicianCount' => $completedJobs,
+        'completionPercent' => $completionPercent,
+        'relatedJobs' => (clone $statsQuery)->whereNotNull('related_request_id')->count(),
+        'underReviewCount' => $underReviewCount,
+        'pendingApprovalCount' => $pendingApprovalCount,
+        'workProgressCount' => $workProgressCount,
+    ]);
+}
     public function show(ClientRequest $clientRequest)
     {
         abort_unless($clientRequest->assigned_technician_id === Auth::id(), 403);

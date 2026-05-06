@@ -32,7 +32,12 @@ class ClientRequestController extends Controller
 
         $query = $this->buildInboxQuery($request, $admin);
 
-        $submissions = $query->orderByRaw("COALESCE(related_request_id, id) DESC")->orderByRaw("CASE WHEN related_request_id IS NULL THEN 0 ELSE 1 END")->latest()->paginate(20)->withQueryString();
+        $submissions = $query
+            ->orderByRaw("CASE WHEN status = ? THEN 0 WHEN status = ? THEN 1 WHEN status = ? THEN 2 WHEN status = ? OR finance_completed_at IS NOT NULL THEN 8 ELSE 3 END", [ClientRequest::STATUS_PENDING_APPROVAL, ClientRequest::STATUS_UNDER_REVIEW, ClientRequest::STATUS_WORK_IN_PROGRESS, ClientRequest::STATUS_COMPLETED])
+            ->orderByDesc("created_at")
+            ->orderByDesc("id")
+            ->paginate(20)
+            ->withQueryString();
 
         $clientRole = $admin->primaryHandledClientRole();
         $locationType = $clientRole === User::CLIENT_HQ ? Location::TYPE_HQ : Location::TYPE_BRANCH;

@@ -1876,3 +1876,11 @@ body.sidebar-open .sidebar{transform:translateX(0)}
     display:inline-flex;
     align-items:center;
 }
+
+/* force compact text pagination and prevent oversized default SVG arrows */
+.pagination-wrap{margin-top:14px;display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
+.pagination-simple{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;font-size:12px;color:#475569}
+.pagination-actions{display:flex;align-items:center;gap:8px}
+.pagination-link{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:600;font-size:12px;line-height:1.2}
+.pagination-link.disabled{color:#94a3b8;background:#f8fafc;cursor:not-allowed}
+.pagination-wrap svg, nav[role="navigation"] svg{display:none!important;width:0!important;height:0!important;max-width:0!important;max-height:0!important}

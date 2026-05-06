@@ -20,6 +20,7 @@
         <thead>
             <tr>
                 <th>Job ID</th>
+                <th>Date Request</th>
                 <th>Client</th>
                 <th>Role</th>
                 <th>Request Type</th>
@@ -33,6 +34,7 @@
             @forelse(($pendingRequests ?? $requests) as $item)
                 <tr>
                     <td>{{ $item->request_code }}</td>
+                    <td>{{ $item->created_at?->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') ?? '-' }}</td>
                     <td>{{ $item->full_name }}</td>
                     <td>{{ $item->user?->roleLabel() ?? '-' }}</td>
                     <td>{{ $item->requestType?->name ?? '-' }}</td>
@@ -54,7 +56,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="8">No pending finance form.</td></tr>
+                <tr><td colspan="9">No pending finance form.</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -67,6 +69,7 @@
         <thead>
             <tr>
                 <th>Job ID</th>
+                <th>Date Request</th>
                 <th>Client</th>
                 <th>Role</th>
                 <th>Request Type</th>
@@ -80,6 +83,7 @@
             @forelse(($completedRequests ?? collect()) as $item)
                 <tr>
                     <td>{{ $item->request_code }}</td>
+                    <td>{{ $item->created_at?->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') ?? '-' }}</td>
                     <td>{{ $item->full_name }}</td>
                     <td>{{ $item->user?->roleLabel() ?? '-' }}</td>
                     <td>{{ $item->requestType?->name ?? '-' }}</td>
@@ -89,7 +93,7 @@
                     <td><a class="btn small ghost" href="{{ ($mapsScope ?? false) ? route('admin.maps.finance.show', $item) : route('admin.finance.show', $item) }}">View Finance Form</a></td>
                 </tr>
             @empty
-                <tr><td colspan="8">No completed finance form yet.</td></tr>
+                <tr><td colspan="9">No completed finance form yet.</td></tr>
             @endforelse
         </tbody>
     </table>

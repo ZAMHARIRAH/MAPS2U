@@ -29,7 +29,7 @@
 </div>
 
 <div class="overview-chip-grid" style="margin-bottom:20px;">
-    <div class="overview-chip"><span>Client</span><strong>{{ $job->full_name }}</strong><small>{{ $job->user->roleLabel() }}</small></div>
+    <div class="overview-chip"><span>Client</span><strong>{{ $job->full_name }}</strong><small>{{ $job->user?->roleLabel() ?? \Illuminate\Support\Str::headline(str_replace('_', ' ', $job->effectiveClientRole() ?? '-')) }}</small></div>
     <div class="overview-chip"><span>Phone</span><strong>{{ $job->phone_number }}</strong><small>Contact number</small></div>
     <div class="overview-chip"><span>Department</span><strong>{{ $job->department?->name ?? '-' }}</strong><small>HQ only</small></div>
     <div class="overview-chip"><span>Related Job</span><strong>{{ $job->relatedRequest?->request_code ?? '-' }}</strong><small>Parent reference</small></div>

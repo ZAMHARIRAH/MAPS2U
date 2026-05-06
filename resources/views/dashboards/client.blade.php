@@ -40,11 +40,28 @@
             <small>Jobs that already finished including customer review.</small>
         </div>
         <div class="meta-tile">
-            <span>Need Your Action</span>
-            <strong>{{ $needActionCount }}</strong>
-            <small>Returned forms and customer feedback waiting from you.</small>
+            <span>Complete (%)</span>
+            <strong>{{ $completionPercent ?? 0 }}%</strong>
+            <small>Completed against total submitted requests.</small>
         </div>
     </div>
+
+<section class="panel" style="margin-top:16px;">
+    <div class="panel-head">
+        <div>
+            <h3>Filter by Urgency</h3>
+            <p>Click a level to show only active jobs with that urgency.</p>
+        </div>
+        @if(!empty($urgencyFilter))
+            <a class="btn small ghost" href="{{ request()->url() }}">Reset Urgency</a>
+        @endif
+    </div>
+    <div class="action-row" style="gap:10px; flex-wrap:wrap;">
+        <a class="btn small {{ ($urgencyFilter ?? '') === 'low' ? 'primary' : 'ghost' }}" style="background:#16a34a;color:#fff;border-color:#16a34a;" href="{{ request()->url() . '?urgency=low' }}">Low ({{ $urgencyCounts['low'] ?? 0 }})</a>
+        <a class="btn small {{ ($urgencyFilter ?? '') === 'medium' ? 'primary' : 'ghost' }}" style="background:#facc15;color:#111827;border-color:#facc15;" href="{{ request()->url() . '?urgency=medium' }}">Medium ({{ $urgencyCounts['medium'] ?? 0 }})</a>
+        <a class="btn small {{ ($urgencyFilter ?? '') === 'high' ? 'primary' : 'ghost' }}" style="background:#dc2626;color:#fff;border-color:#dc2626;" href="{{ request()->url() . '?urgency=high' }}">High ({{ $urgencyCounts['high'] ?? 0 }})</a>
+    </div>
+</section>
 </div>
 
 @if($announcements->isNotEmpty())
@@ -115,6 +132,7 @@
             <thead>
                 <tr>
                     <th>Job ID</th>
+                    <th>Date Request</th>
                     <th>Type</th>
                     <th>Urgency</th>
                     <th>Status</th>
@@ -148,6 +166,7 @@
                                 </div>
                             </div>
                         </td>
+                        <td>{{ $request->created_at?->timezone('Asia/Kuala_Lumpur')->format('d M Y h:i A') ?? '-' }}</td>
                         <td>{{ $request->requestType->name }}</td>
                         <td><span class="badge {{ $request->urgencyBadgeClass() }}">{{ $request->urgencyLabel() }}</span></td>
                         <td>
@@ -217,7 +236,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             <div class="empty-state-card">
                                 <strong>No request submitted yet.</strong>
                                 <p class="helper-text">Start by opening the request menu and create your first job request.</p>
@@ -228,6 +247,7 @@
             </tbody>
         </table>
     </div>
+    <div class="pagination-wrap">{{ $latestRequests->links() }}</div>
 </section>
 
 <script>

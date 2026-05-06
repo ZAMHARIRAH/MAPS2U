@@ -28,23 +28,52 @@ class AdminDashboardController extends Controller
         $admin = Auth::user();
         $handledRoles = $mapsScope ? [User::CLIENT_KINDERGARTEN] : $admin->handledClientRoles();
 
-        $requests = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
+        $baseQuery = ClientRequest::with(['user', 'requestType', 'location', 'department', 'relatedRequest', 'assignedTechnician'])
             ->where(function ($query) use ($handledRoles) {
                 $query->whereHas('user', fn ($userQuery) => $userQuery->whereIn('sub_role', $handledRoles))
                     ->orWhere(function ($legacyQuery) use ($handledRoles) {
                         $legacyQuery->where('inspect_data->source', 'bulk_import')
                             ->whereIn('inspect_data->legacy_client_role', $handledRoles);
                     });
-            })
-            ->latest()
-            ->get();
+            });
+
+        $requests = (clone $baseQuery)->latest()->get();
 
         $countableRequests = $requests->reject(fn (ClientRequest $request) => $request->status === ClientRequest::STATUS_REJECTED)->values();
         $completedCount = $countableRequests->filter(fn (ClientRequest $request) => (bool) $request->finance_completed_at || $request->status === ClientRequest::STATUS_COMPLETED)->count();
         $pendingCount = $countableRequests->filter(fn (ClientRequest $request) => !$request->finance_completed_at && $request->status !== ClientRequest::STATUS_COMPLETED)->count();
-        $recentRequests = $countableRequests
-            ->reject(fn (ClientRequest $request) => in_array($request->adminWorkflowLabel(), ['Completed', ClientRequest::STATUS_REJECTED], true))
-            ->values();
+        $urgencyFilter = request('urgency');
+        $urgencyLevels = ['low' => 1, 'medium' => 2, 'high' => 3];
+
+        $recentQuery = (clone $baseQuery)
+            ->whereNotIn('status', [ClientRequest::STATUS_COMPLETED, ClientRequest::STATUS_REJECTED])
+            ->whereNull('finance_completed_at');
+
+        if (array_key_exists($urgencyFilter, $urgencyLevels)) {
+            $recentQuery->where('urgency_level', $urgencyLevels[$urgencyFilter]);
+        }
+
+        $urgencyCounts = [
+            'low' => (clone $baseQuery)->whereNotIn('status', [ClientRequest::STATUS_COMPLETED, ClientRequest::STATUS_REJECTED])->whereNull('finance_completed_at')->where('urgency_level', 1)->count(),
+            'medium' => (clone $baseQuery)->whereNotIn('status', [ClientRequest::STATUS_COMPLETED, ClientRequest::STATUS_REJECTED])->whereNull('finance_completed_at')->where('urgency_level', 2)->count(),
+            'high' => (clone $baseQuery)->whereNotIn('status', [ClientRequest::STATUS_COMPLETED, ClientRequest::STATUS_REJECTED])->whereNull('finance_completed_at')->where('urgency_level', 3)->count(),
+        ];
+
+        $recentRequests = $recentQuery
+            ->orderByRaw("CASE
+                WHEN status = ? THEN 0
+                WHEN status = ? THEN 1
+                WHEN status = ? THEN 2
+                ELSE 3
+            END", [
+                ClientRequest::STATUS_PENDING_APPROVAL,
+                ClientRequest::STATUS_UNDER_REVIEW,
+                ClientRequest::STATUS_WORK_IN_PROGRESS,
+            ])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'requests_page')
+            ->withQueryString();
         $financeAlerts = $requests
             ->filter(fn (ClientRequest $request) => $request->hasFinancePending() && !$request->finance_completed_at)
             ->take(6)
@@ -59,7 +88,9 @@ class AdminDashboardController extends Controller
             'pendingCount' => $pendingCount,
             'completedCount' => $completedCount,
             'completionPercent' => $countableRequests->count() > 0 ? round(($completedCount / $countableRequests->count()) * 100) : 0,
-            'recentRequests' => $this->arrangeRelatedRequests($recentRequests->take(18)),
+            'urgencyFilter' => $urgencyFilter,
+            'urgencyCounts' => $urgencyCounts,
+            'recentRequests' => $recentRequests,
             'financeAlerts' => $financeAlerts,
         ]);
     }
